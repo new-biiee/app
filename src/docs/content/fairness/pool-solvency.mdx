@@ -1,0 +1,58 @@
+# Pool Solvency Model
+
+The LP pool is the counterparty for every bet. These invariants keep it solvent.
+
+## Pool Conservation Identity (ZK-Enforced)
+
+At every settlement batch, the pool balance changes by an amount verified by constraint D1:
+
+When `net_payout ≥ 0` (pool pays out):
+$$\text{pool\_after} = \text{pool\_before} - \text{net\_payout} - \text{keeper\_fee}$$
+
+When `net_payout < 0` (pool gains):
+$$\text{pool\_after} = \text{pool\_before} + |\text{net\_payout}| - \text{keeper\_fee} - \text{protocol\_fee}$$
+
+No valid proof can be posted for a batch with an incorrect pool update.
+
+## Maximum Liability
+
+At any moment, the pool's worst-case exposure:
+
+$$\text{max\_liability} = \sum_{i \in \text{open}} \frac{\text{stake}_i \times \text{multiplier}_i}{10{,}000}$$
+
+The pool must be able to cover this scenario to guarantee winners can always be paid.
+
+## Hard Solvency Invariants
+
+Checked on-chain at order placement:
+
+$$\text{pool\_balance} \ge \text{current\_liability}$$
+
+Any order that would cause `current_liability > pool_balance` is rejected — no bypass possible.
+
+## Risk Guardrails
+
+| Guardrail | Value | Constraint |
+|-----------|-------|------------|
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | Pool must be ≥ 1.5× liability — new orders paused below this |
+| `MAX_UTILIZATION_BPS` | 7,000 | Max 70% of pool at risk at any time |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | Single bet max payout ≤ 2% of pool |
+
+These work together: the single-bet cap prevents any one bet from creating outsized exposure; the utilization cap prevents the aggregate from pushing close to the solvency floor; the solvency ratio keeps a meaningful buffer above the 1:1 floor.
+
+## On-Chain Proof of Reserve
+
+A `SolvencyReported` event is emitted at each settlement batch close:
+
+```
+SolvencyReported {
+  epochId, poolBalance, totalLiability,
+  utilizationBps, maxSingleBetExposure
+}
+```
+
+Anyone can index these events to track pool health over time and verify `utilizationBps` stayed below 7,000 at every epoch.
+
+## LP Mechanics
+
+LPs deposit USDT in exchange for pool shares. They earn a pro-rata share of the protocol fee (when the pool gains) and bear drawdown risk from winning bettors. The `MIN_SOLVENCY_RATIO` invariant throttles new orders before the pool approaches insolvency, giving LPs time to exit if needed.

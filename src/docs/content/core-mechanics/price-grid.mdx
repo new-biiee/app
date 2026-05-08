@@ -1,0 +1,69 @@
+# The Price Grid
+
+The grid is a 10×9 matrix of tradeable cells rebroadcast every 250 ms per market. Each cell is a unique (time window, price band) pair.
+
+## Dimensions
+
+| Dimension | Value | Meaning |
+|-----------|-------|---------|
+| `gridNX` | 10 | Time columns |
+| `gridNY` | 9 | Price rows |
+| Column width | 5 seconds | One 5-second window per column |
+| Refresh rate | 250 ms | Full grid rebroadcast |
+
+The grid covers 50 seconds of future windows at any moment. The 9 rows are centered on the current market price (±4.5 cells).
+
+Price cell sizes:
+
+| Market | Price Cell Size |
+|--------|----------------|
+| BTC/USDT | $25.00 |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | $0.10 |
+
+Cells closer to `now` (left columns) and current price (center rows) have **lower reward rates** — they're more likely to win. Farther cells carry **higher reward rates**.
+
+---
+
+## Cell Structure
+
+```json
+{
+  "marketId":      "BTCUSDT",
+  "startTs":       1714000300000,
+  "endTs":         1714000600000,
+  "lowerPrice":    63500.00,
+  "upperPrice":    64000.00,
+  "rewardRate":    18500,
+  "gridSignature": "a3f8c2d1e9b04751..."
+}
+```
+
+`gridSignature` is HMAC-SHA256 over all cell fields. The backend signs before `startTs` — retroactive reward rate changes invalidate the signature. The ZK circuit verifies that each settled order's reward rate matches the signed cell.
+
+---
+
+## Reward Rate Model
+
+The reward rate is a function of two normalized variables:
+
+$$\text{rewardRate} = f(dx,\, dy)$$
+
+where:
+- $dx = (t_{\text{cell}} - t_{\text{now}}) / \text{gridXSizeMs}$ — normalized time offset
+- $dy = |p_{\text{cell}} - p_{\text{now}}| / \text{priceCellSize}$ — normalized price distance
+
+$f$ is a polynomial-log parametric model calibrated offline via Monte Carlo simulation (GBM price paths) and Brownian Bridge near-barrier adjustment.
+
+| $dx$ (time) | $dy$ (price) | Reward Rate |
+|-------------|--------------|-------------|
+| Low (1 step) | Low (0 bands) | Low |
+| Low (1 step) | High (4+ bands) | High |
+| High (5+ steps) | Low (0 bands) | Medium |
+| High (5+ steps) | High (4+ bands) | Very high |
+
+---
+
+## Grid Staleness
+
+A grid broadcast is valid for at most 500 ms. If the client doesn't receive a refresh within that window, it should stop accepting new order submissions until the next valid `gridUpdate` arrives.

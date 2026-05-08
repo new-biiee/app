@@ -1,0 +1,85 @@
+# Instructions Reference
+
+All instructions are Anchor-IDL-compatible, callable via the Anchor TypeScript client or any Solana transaction builder.
+
+## Summary
+
+| Instruction | Caller | Description |
+|-------------|--------|-------------|
+| `admin_init` | Admin | Initialize global state — keeper pubkey, fee rates, batch interval |
+| `init_market` | Admin | Register a market with Pyth feed ID and risk parameters |
+| `update_market` | Admin | Update market parameters (regime, fortress spread, max multiplier) |
+| `lp_deposit` | LP | Add USDT liquidity; receive pool shares |
+| `lp_withdraw` | LP | Burn pool shares; receive proportional USDT |
+| `trader_deposit` | User | Deposit USDT collateral into `trader_account` |
+| `trader_withdraw` | User | Withdraw unused USDT from `trader_account` |
+| `place_trade` | User | Record a trade — stake debited immediately from `collateral_balance` |
+| `verify_and_settle` | Keeper | Submit Groth16 proof and atomically settle a batch |
+| `distribute_winnings` | Any | Claim a winning trade's payout via Merkle proof |
+| `rotate_keeper` | Admin | Update `global_state.keeper` without re-deploying |
+| `pause` / `unpause` | Admin | Emergency halt or resume trading and settlement |
+| `withdraw_protocol_fees` | Admin | Extract accumulated protocol fee USDT from vault |
+
+---
+
+## Key Instruction Details
+
+### `admin_init`
+
+Creates `global_state` PDA and vault USDT token account. Called once before any other interaction.
+
+**Parameters:** `keeper` (Pubkey), `protocol_fee_bps` (u16, current: 100), `keeper_fee_bps` (u16, current: 25), `min_batch_interval_secs` (u64)
+
+### `lp_deposit` / `lp_withdraw`
+
+Share minting: $\text{new\_shares} = \dfrac{\text{deposit} \times \text{total\_shares}}{\text{pool\_balance\_before}}$ (first deposit is 1:1)
+
+Withdrawal: $\text{usdt\_out} = \dfrac{\text{shares\_to\_redeem} \times \text{pool\_balance}}{\text{total\_shares}}$ — fails if it would breach minimum solvency margin.
+
+### `place_trade`
+
+Stake is debited from `trader_account.collateral_balance` at submission time. Trade commitment hash `SHA256(trade fields...)` is stored on-chain and verified by ZK constraint A1.
+
+**Parameters:** `market_id` (u64), `batch_id` ([u8;32]), `trade_id` ([u8;32]), `direction` (u8), `price_band_lower` (i64), `price_band_upper` (i64), `stake_usdt` (u64), `multiplier_bps` (u32)
+
+### `verify_and_settle`
+
+Full parameter list (25 fields):
+
+| Parameter | Type |
+|-----------|------|
+| `market_id` | `u64` |
+| `batch_id` | `[u8; 32]` |
+| `proof_a` | `[u8; 64]` |
+| `proof_b` | `[u8; 128]` |
+| `proof_c` | `[u8; 64]` |
+| `proof_nonce` | `u64` |
+| `public_outputs_hash` | `[u8; 32]` |
+| `window_start` | `i64` |
+| `window_end` | `i64` |
+| `pyth_checkpoints_hash` | `[u8; 32]` |
+| `net_payout_usdt` | `i64` |
+| `pool_balance_before` | `u64` |
+| `pool_balance_after` | `u64` |
+| `num_trades` | `u32` |
+| `nullifier_hash` | `[u8; 32]` |
+| `keeper_fee` | `u64` |
+| `current_liability_before` | `u64` |
+| `protocol_fee` | `u64` |
+| `num_winners` | `u32` |
+| `num_losers` | `u32` |
+| `total_winners_payout` | `u64` |
+| `total_losers_stake` | `u64` |
+| `market_regime_id` | `u64` |
+| `payouts_commitment` | `[u8; 32]` |
+| `trades_commitment` | `[u8; 32]` |
+
+### `distribute_winnings`
+
+Permissionless — anyone can call it, but USDT always goes to the trade's original `trader_pubkey`.
+
+Flow:
+1. Recomputes leaf: `SHA256("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout_amount ‖ leaf_index)`
+2. Walks Merkle proof path, checks root equals `batch_receipt.merkle_root`
+3. Checks `claim_receipt` PDA doesn't exist
+4. Creates `claim_receipt`, transfers payout USDT from vault

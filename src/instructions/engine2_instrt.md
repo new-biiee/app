@@ -1,0 +1,6 @@
+Letter,Technical Definition,Visual Concept (2D/Vector/GIF),Why this works
+C,Compressed,"The Data SingularityA swarm of small particles (Green) converging into a single, glowing dense block (Pink) in the center.","Represents ZK-aggregation where thousands of trades are ""squeezed"" into one atomic proof."
+A,Arithmetic,The Precision GridA high-tech measurement HUD showing horizontal laser lines at fixed intervals that flicker when a price-line touches them.,Reflects the $20 grid bands. It looks like a high-precision blueprint or a digital ruler.
+R,Root Anchored,"The Cryptographic SealA central ""Fingerprint"" or Merkle-Tree icon with a thick vertical line striking through it, bolting it to a baseplate.","Visually shows that the off-chain data is ""locked"" and immovable once it is committed to the Solana ledger."
+NO,Natively Owned,"The Sovereign PulseA central node surrounded by concentric circles that radiate outward like a heartbeat, protected by a rotating shield.","Emphasizes that the user is the ""Source of Power"" (the fuel) and retains full custody of their assets."
+T,Tap-trading,"The Kinetic SparkA fast, expanding circular ripple that triggers a ""flash"" effect, momentarily lighting up the surrounding grid.","Captures the ""Trigger"" moment—the fast, 5-second ignition that starts the entire engine cycle."

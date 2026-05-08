@@ -1,0 +1,44 @@
+# Real-Time Price Feed
+
+All price data originates from the Binance Futures aggTrade stream, dispatched to four internal consumers.
+
+## Source
+
+```
+wss://fstream.binance.com/ws/{symbol}@aggTrade
+```
+
+One subscription per market (`btcusdt`, `ethusdt`, `solusdt`). The backend keeps the latest trade per market in memory, deduplicated by `tradeId`. Reconnects automatically with exponential backoff on disconnect.
+
+## Downstream Consumers
+
+### Socket.IO Broadcast (`newPrice`)
+
+Every tick is immediately forwarded to connected frontend clients:
+
+```
+newPrice { marketId, price, ts }
+```
+
+No throttling — every aggTrade tick is forwarded.
+
+### Tick Evaluation (`OrderService.onTick`)
+
+A separate 100 ms timer reads the latest cached price per market and evaluates all open orders whose `endTs` has been reached. This uses the most recent aggTrade seen before the timer fires, not necessarily the exact price at `endTs`. The settlement candle rule (OHLC close) provides the canonical, deterministic outcome.
+
+### OHLC Construction (`OhlcService.processPriceTick`)
+
+Each tick feeds the OHLC builder, aggregating into **5-second candles** (open = first tick, high = max, low = min, close = last tick). Completed candles are written to **ClickHouse** via Kafka. The Worker queries these candles during batch assembly.
+
+### Grid Pricing (`GridService.model`)
+
+Every 250 ms, `GridService` recalculates all cell reward rates using the current mid-price, active volatility regime, fortress spread, and multiplier cap. Signs each cell with the server HMAC key and emits `gridUpdate` via Socket.IO.
+
+## Connection Resilience
+
+If the Binance WebSocket drops:
+1. Tick processing stops immediately
+2. Last known price stays cached — downstream evaluations continue on stale data
+3. Reconnection attempted with exponential backoff
+
+Orders reaching `endTs` while the feed is down are evaluated using the last available OHLC data in ClickHouse. The settlement candle rule maintains continuity.

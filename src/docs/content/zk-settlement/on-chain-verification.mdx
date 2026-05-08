@@ -1,0 +1,73 @@
+# On-Chain Verification
+
+After the keeper generates a Groth16 proof, it submits it via `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. This instruction atomically verifies the proof and finalizes the batch. Every step is atomic — any failure reverts with no state change.
+
+## Execution Steps
+
+**Step 1 — Groth16 pairing check**
+
+The program invokes Solana's native BN254 precompile:
+
+$$e(\pi_A,\, \pi_B) = e(\alpha, \beta) \cdot e\!\left(l \cdot \gamma^{-1},\, \gamma\right) \cdot e(\pi_C, \delta)$$
+
+where $l$ is `public_outputs_hash` as a field element. Failure here aborts immediately.
+
+**Step 2 — Nullifier replay check**
+
+Loads PDA at `["nullifier", nullifier_hash]`. If it exists, fails with "account already in use." This is the primary replay protection.
+
+**Step 3 — Public outputs hash binding**
+
+Recomputes `public_outputs_hash` locally from the 20 settlement parameters in canonical order. Checks:
+
+```
+recomputed_hash == public_outputs_hash (from the Groth16 public input)
+```
+
+A proof generated for different settlement parameters fails this check.
+
+**Step 4 — Create nullifier PDA**
+
+Creates `["nullifier", nullifier_hash]` as a minimal rent-exempt account. Existence permanently marks this batch as settled. Any future re-submission fails at Step 2.
+
+**Step 5 — Create `batch_receipt` PDA**
+
+Creates `["batch", batch_id]` containing:
+- `merkle_root` = `payouts_commitment`
+- `window_start`, `window_end`
+- `settled = true`
+- `market_id`, `num_trades`, `num_winners`, `num_losers`
+
+This PDA is the anchor for all subsequent winner claims.
+
+**Step 6 — Update pool balance**
+
+Updates vault tracked balance to `pool_balance_after`. Transfers `keeper_fee` USDT to keeper's token account. Transfers `protocol_fee` USDT to protocol treasury (if > 0).
+
+**Step 7 — Emit settlement event**
+
+Anchor `emit!` logs all settlement fields. Indexers and frontends subscribe to this to update state in real time.
+
+---
+
+## Replay Protection
+
+```
+nullifier_hash = SHA256(batch_id ‖ sorted_trade_id_1 ‖ ... ‖ sorted_trade_id_N)
+```
+
+Trade IDs are sorted and deduplicated by constraints A2/F1–F2. Solana's runtime forbids re-initializing an existing PDA, so replay is impossible even if the keeper reacquires a previously submitted proof.
+
+---
+
+## Winner Claims
+
+Once `batch_receipt` exists, winners call `distribute_winnings`:
+
+1. Construct Merkle proof: `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout_amount ‖ leaf_index)`
+2. Submit leaf data + Merkle proof path
+3. Program verifies path against `batch_receipt.merkle_root`
+4. Checks `["claim_receipt", batch_id, trade_id]` doesn't exist
+5. Creates `claim_receipt`, transfers `payout_amount` USDT from vault
+
+No trust in the keeper required — the proof is self-contained and verified against the ZK-guaranteed root.

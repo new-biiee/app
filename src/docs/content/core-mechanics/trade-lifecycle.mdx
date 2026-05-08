@@ -1,0 +1,78 @@
+# Trade Lifecycle
+
+States a trade moves through from submission to on-chain claim:
+
+```
+PENDING → WIN/LOSS → SETTLED → BATCHED → ZK_PROVEN → ON_CHAIN → CLAIMED
+```
+
+---
+
+## States
+
+### PENDING
+
+Accepted by the backend, written to the database. The pool has reserved liquidity to cover the gross payout, and `gridSignature` has been verified.
+
+The tick evaluator checks the order every **100 ms** against the live Binance Futures aggTrade stream. No outcome until the window closes.
+
+### WIN / LOSS
+
+At `window_end`, the settlement candle is evaluated — the OHLC close of the last completed candle with timestamp ≤ `window_end`.
+
+- **WIN:** `settlement_close ∈ [lowerPrice, upperPrice)`
+- **LOSS:** `settlement_close ∉ [lowerPrice, upperPrice)`
+
+This same rule runs in both the backend evaluator and the ZK circuit. Disagreement between the two would cause the proof to fail.
+
+### SETTLED
+
+Immediately after WIN/LOSS determination. Gross payout (or forfeited stake) is recorded. Order awaits batch assembly.
+
+### BATCHED
+
+Every minute, the Worker:
+1. Fetches OHLC candles from ClickHouse
+2. Computes net payouts per order
+3. Builds a binary SHA-256 Merkle tree over payout leaves
+4. Writes a `settlement_batch` with status `PENDING` and the Merkle root
+
+### ZK_PROVEN
+
+The SP1 prover runs the Carnot ZK circuit. Verifies 28 constraints (A1–F3): OHLC integrity, Pyth oracle cross-validation (max 2% deviation), win/loss correctness, pool conservation, Merkle root. On success, outputs a Groth16 proof. Batch transitions to `ZK_PROVEN`.
+
+### ON_CHAIN
+
+The keeper submits `verify_and_settle` to `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. On-chain Groth16 verification runs. If valid:
+- `batch_receipt` PDA created with the Merkle root
+- Nullifier PDA stamped (prevents replay)
+- Pool balance updated
+
+Keeper earns **0.25%** of `|net_payout|`.
+
+### CLAIMED
+
+Winner calls `distribute_winnings` with a Merkle inclusion proof:
+1. `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)` — leaf recomputed
+2. Inclusion proof verified against stored root
+3. Nullifier checked (prevents double-claim)
+4. USDT transferred from vault
+
+Unclaimed winnings remain in the vault indefinitely — they don't expire.
+
+---
+
+## Tick Evaluation Loop
+
+```
+every 100ms:
+  for each PENDING order:
+    if now >= window_end:
+      candle = last OHLC close with ts <= window_end
+      if candle.close ∈ [lowerPrice, upperPrice):
+        mark WIN
+      else:
+        mark LOSS
+```
+
+Outcomes are written within one tick (≤ 100 ms) of window close. The OHLC close rule is immune to intra-bar price manipulation — only where the market settled after the window matters.

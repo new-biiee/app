@@ -1,0 +1,123 @@
+import {
+  DocsBarrierCorrectionDiagram,
+  DocsFiveLayerStackDiagram,
+  DocsPricingEngineDiagram,
+  DocsPricingPipelineDiagram,
+  DocsQuoterDiagram,
+  DocsRiskManagementDiagram,
+  DocsVolatilityEngineDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# The Complete Model — Vision
+
+The current deployment is a working proof of concept with a pre-calibrated pricing model. The full production system integrates five mathematical layers that produce a self-regulating market where pool edge and solvency are maintained dynamically.
+
+## End-to-End Pricing Pipeline
+
+<DocsPricingPipelineDiagram />
+
+**Input →** Binance Futures `aggTrade` stream (real-time tick events: price, size, trade direction, timestamp).
+
+**Output →** `fortressSpreadBps[dx][dy]` — a signed cell grid with one spread value per `(dx, dy)` price-band cell, re-emitted every 250 ms directly to the on-chain quoter (Carnot Solana program). This is what the smart contract reads to set payout multipliers for each active price band.
+
+| Stage | What it produces | Consumed by |
+|-------|-----------------|-------------|
+| L1 · Volatility Engine | `σ_t` (EGARCH conditional vol), `λ_t` (Hawkes jump intensity), VPIN score | L2, L3, L4 |
+| L2 · Reward Surface | `fair_rate` — vol-adjusted polynomial payout rate | L3 |
+| L3 · Kou Barrier | Barrier-touch corrected rate (near-barrier cells tightened, far-barrier cells loosened) | L4 Clamp |
+| L4 · AS Quoter | `fortressSpreadBps` per cell, clamped `[60, 350]` | On-chain grid / output |
+| L5 · CVaR Control | Budget flag → inventory premium feedback into L4 | L4 Inv Premium |
+
+**Feedback loops:**
+- L5 → L4: CVaR budget flag widens inventory premium, tightening spreads to cut pool exposure.
+- L4 → Feed (dashed): each emitted grid closes the 250 ms cycle and the next tick batch arrives immediately.
+
+---
+
+## Five-Layer Architecture
+
+End-to-end stack from volatility through risk — each layer below is expanded in its own subsection.
+
+<DocsFiveLayerStackDiagram />
+
+**Layer 1 — Volatility Engine (EGARCH(1,1) + Hawkes)**
+
+EGARCH(1,1) is an asymmetric volatility model that captures the leverage effect — negative price shocks produce larger volatility spikes than equivalent positive moves:
+
+$$\log \sigma^2_t = \omega + \beta \log \sigma^2_{t-1} + \alpha \left|\frac{\epsilon_{t-1}}{\sigma_{t-1}}\right| + \gamma \frac{\epsilon_{t-1}}{\sigma_{t-1}}$$
+
+$\gamma < 0$ encodes the asymmetry. Without it, vol is symmetric around zero returns — which empirically understates post-drawdown risk.
+
+Hawkes process tracks volatility clustering:
+$$\lambda(t) = \mu + \sum_{t_i < t} \alpha \cdot e^{-\beta(t - t_i)}$$
+
+The Hawkes intensity $\lambda_t$ flows directly into Layer 2 as jump intensity — vol engine and pricer are structurally consistent by construction.
+
+<DocsVolatilityEngineDiagram />
+
+**Layer 2 — Hawkes-Driven Jump-Diffusion Pricing (Sobol QMC)**
+
+Prices each cell via a jump-diffusion process where jump intensity is fed directly from Layer 1:
+
+$$dS_t = \mu S_t \, dt + \sigma_t S_t \, dW_t + J_t \, dN_t(\lambda_t)$$
+
+Path simulation uses **Quasi-Monte Carlo Sobol sequences** instead of pseudo-random draws. Sobol sequences are low-discrepancy — they fill the state space more uniformly, giving 10–30× variance reduction in $P_{\text{true}}$ estimates for the same sample count.
+
+Fair multiplier = $1 / P_{\text{true}}$ where $P_{\text{true}}$ = fraction of paths with $S_T \in [L, U)$. Runs every 250 ms as $\sigma_t$ and $\lambda_t$ change.
+
+<DocsPricingEngineDiagram />
+
+**Layer 3 — Kou Jump-Diffusion Barrier Extension**
+
+For near-barrier cells, the Kou double-exponential jump model gives a closed-form barrier-touch probability:
+
+$$P_{\text{touch}} = \underbrace{e^{-2(x-b)(y-b)/\sigma^2 T}}_{\text{diffusion term}} + \underbrace{\Delta_{\text{Kou}}(\lambda,\, p,\, \eta_1,\, \eta_2,\, T)}_{\text{jump correction}}$$
+
+When $\lambda \approx 0$, $\Delta_{\text{Kou}} \to 0$ and the formula collapses to the standard Brownian Bridge. Applied in real-time to near-barrier cells where plain diffusion underestimates touch probability.
+
+<DocsBarrierCorrectionDiagram />
+
+**Layer 4 — Avellaneda-Stoikov Quoter + VPIN Gate**
+
+Uses the Avellaneda-Stoikov stochastic control solution. Closed-form reservation price (fair mid adjusted for inventory risk):
+
+$$r = s - q \cdot \gamma \cdot \sigma^2 \cdot (T - t)$$
+
+Optimal half-spread:
+
+$$\delta = \gamma \sigma^2 (T - t) + \frac{2}{\gamma} \ln\!\left(1 + \frac{\gamma}{\kappa}\right)$$
+
+**VPIN gate:** Volume-Synchronized Probability of Informed Trading. If VPIN exceeds a calibrated threshold, the pool is in an adverse selection regime. The quoter skews multipliers further against the toxic flow direction. VPIN leads realized vol — it reacts to directional order flow imbalance before the vol spike materializes.
+
+<DocsQuoterDiagram />
+
+**Layer 5 — EVT-Calibrated CVaR (Generalized Pareto Distribution)**
+
+Uses Extreme Value Theory to fit the tail of pool loss distributions directly — accurate in extreme regimes where scenario counts are inherently low.
+
+Peaks-over-Threshold: fit a **Generalized Pareto Distribution** to pool loss simulations exceeding threshold $u$:
+
+$$F_u(x) = 1 - \left(1 + \frac{\xi x}{\beta}\right)^{-1/\xi}$$
+
+Closed-form CVaR from the GPD fit:
+
+$$\text{CVaR}_{0.95} = \frac{\text{VaR}_{0.95} + \beta - \xi u}{1 - \xi}$$
+
+If $\text{CVaR}_{0.95}$ exceeds the pool's risk budget: auto-reduce `MAX_UTILIZATION_BPS`, tighten `MAX_SINGLE_BET_EXPOSURE_BPS`. No manual admin intervention required.
+
+<DocsRiskManagementDiagram />
+
+## POC vs Full System
+
+| Component | Proof of Concept | Full System |
+|-----------|-----------------|-------------|
+| Volatility estimate | Hardcoded (0.45) | Live EGARCH(1,1) + Hawkes at every tick |
+| Pricing engine | Pre-fitted parametric model | Jump-diffusion + Sobol QMC every 250 ms |
+| Barrier correction | Static (offline calibration) | Kou extension (real-time, near-barrier cells) |
+| Quoter | Fixed NORMAL regime, static spread | Avellaneda-Stoikov + VPIN adverse selection gate |
+| CVaR / pool management | Static constants | EVT-calibrated CVaR with GPD tail fit |
+| ZK settlement | **Live** | Same |
+| Oracle binding (Pyth) | **Live** | Same |
+| On-chain solvency invariant | **Live** | Same |
+
+The ZK settlement layer, oracle binding, and on-chain solvency invariants are fully live and production-grade today.

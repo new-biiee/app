@@ -1,0 +1,60 @@
+import {
+  DocsBarrierCorrectionDiagram,
+  DocsPricingEngineDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# Reward Rate Model
+
+Every cell's reward rate is a function of two normalized variables:
+
+$$\text{rewardRate} = f(dx,\, dy)$$
+
+where:
+- $dx = (t_{\text{cell}} - t_{\text{now}}) / \text{gridXSizeMs}$ — normalized time offset
+- $dy = |p_{\text{cell}} - p_{\text{now}}| / \text{priceCellSize}$ — normalized price distance
+
+## Model Structure
+
+$f$ is a **polynomial-log parametric model**:
+- **Logarithmic terms in $dx$:** cells one step ahead have slightly higher win probability, with the difference growing logarithmically — terms like $\log(dx + m)$ to avoid singularity at $dx = 0$
+- **Polynomial terms in $dy$:** the price-distance to win-probability relationship is approximately polynomial over the finite grid range
+
+Coefficients were calibrated offline. The model shape matches the theoretical fair-value surface from Hawkes-driven jump-diffusion simulation.
+
+## Offline Calibration
+
+**Step 1 — Jump-Diffusion Monte Carlo (Sobol QMC)**
+
+For each grid position $(dx, dy)$, simulated price paths under a Hawkes-driven jump-diffusion process:
+
+$$dS_t = \mu S_t \, dt + \sigma_t S_t \, dW_t + J_t \, dN_t(\lambda_t)$$
+
+where $\lambda_t$ is the Hawkes intensity from the volatility engine. Paths were drawn using **Quasi-Monte Carlo Sobol sequences** — low-discrepancy sequences that fill the state space uniformly and give 10–30× variance reduction over pseudo-random sampling for the same path count.
+
+The fraction of paths with $S_T \in [L, U)$ gave empirical win probability $\hat{P}(dx, dy)$.
+
+<DocsPricingEngineDiagram />
+
+**Step 2 — Kou Barrier Correction**
+
+For near-barrier cells (small $dy$), applied the Kou jump-diffusion barrier extension:
+
+$$P_{\text{touch}} = e^{-2(x-b)(y-b)/\sigma^2 T} + \Delta_{\text{Kou}}(\lambda,\, p,\, \eta_1,\, \eta_2,\, T)$$
+
+$\Delta_{\text{Kou}}$ accounts for the additional barrier-touch probability from jump arrivals. At negligible jump intensity it collapses to the plain diffusion formula — no discontinuity as $\lambda \to 0$.
+
+<DocsBarrierCorrectionDiagram />
+
+**Step 3 — Model Fitting**
+
+Fit $f(dx, dy)$ to minimize MSE between $1/f(dx, dy)$ (implied win probability) and the corrected estimates $\hat{P}(dx, dy)$.
+
+## Platform Edge & Fortress Spread
+
+**Platform edge** (`PLATFORM_EDGE_BPS = 700`, 7%): uniform downward scaling of fair-value multipliers. Instead of $\text{multiplier} = 1/\hat{P}$, the model targets $\approx 1/\hat{P} \times 0.93$. Embedded at commitment time — users can verify the edge by comparing offered multipliers against theoretical $1/\hat{P}$ for any $(dx, dy)$.
+
+**Fortress spread** (`fortressSpreadBps = 150` in NORMAL regime): additional non-uniform tilt based on current VolatilityRegime. Widens to 300 bps (HIGH) or 500 bps (EXTREME). The full production system uses Avellaneda-Stoikov optimal half-spread derived from live $\sigma_t$ and inventory state.
+
+## Signature Commitment
+
+The ZK circuit verifies that each settled order's `rewardRate` matches the `gridSignature`-committed value. The model can't be changed retroactively for a cell already in play.

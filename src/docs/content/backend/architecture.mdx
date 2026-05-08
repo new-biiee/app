@@ -1,0 +1,52 @@
+import { DocsFullSystemOverviewDiagram } from "../../components/WorkflowEmbeds";
+import { DocsSystemArchitectureDiagram } from "../../components/WorkflowEmbeds";
+
+# Backend Architecture
+
+<DocsFullSystemOverviewDiagram />
+
+The backend is a single deployable image running as two processes that share PostgreSQL, Redis, Kafka, and ClickHouse.
+
+<DocsSystemArchitectureDiagram />
+
+## Processes
+
+**API Server** handles:
+- REST endpoints (JWT for users, API key for keeper)
+- Socket.IO WebSocket connections (real-time price and order events)
+- Inbound Binance Futures aggTrade WebSocket
+
+**Worker** (1-minute schedule):
+- Queries `SETTLED` orders for the elapsed window
+- Fetches OHLC candles from ClickHouse
+- Fetches deposit/withdrawal history
+- Builds binary SHA-256 Merkle tree over payout leaves
+- Writes `settlement_batch` with status `PENDING`
+
+## Auth Model
+
+| Caller | Endpoints | Auth |
+|--------|-----------|------|
+| Frontend users | `/api/auth/*`, `/api/orders`, `/api/account/*`, `/api/payment/*` | `Authorization: Bearer {JWT}` |
+| Keeper bot | `/api/v1/settlement/*`, `/api/v1/strategy/*` | `X-API-KEY: {key}` |
+| Keeper bot | `/api/internal/batch/*` | `Authorization: Bearer {token}` |
+
+## Infrastructure
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL 15 | 5437 | Orders, batches, accounts |
+| Redis 7.x | 6381 | Rate limiting, session data |
+| Kafka 7.3.2 | 39092 | Price tick fan-out to ClickHouse |
+| ClickHouse 23.8 | 8124 | OHLC candle storage |
+| MinIO | 32126–32127 | ZK proof artifacts, batch data blobs |
+
+## Data Paths
+
+**Hot path (real-time):** Binance Futures aggTrade → in-memory per market → Socket.IO broadcast + 100 ms tick evaluation loop → WIN/LOSS written to PostgreSQL.
+
+**Cold path (batch):** Raw ticks → Kafka → ClickHouse (5-second OHLC candles). Every minute, Worker queries OHLC + settled orders → assembles batch for ZK proving.
+
+---
+
+The on-chain `carnot_engine` program is the ultimate source of truth — it enforces ZK proof validity, solvency, and Merkle-based payouts regardless of backend state. Internal port numbers and database schemas are implementation details that may change; the API surface documented in the API Reference is the stable integration boundary.

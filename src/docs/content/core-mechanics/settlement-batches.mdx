@@ -1,0 +1,56 @@
+# Settlement Batches
+
+All settled orders within a 1-minute window are aggregated into a **settlement batch** — a self-contained record verified by a single ZK proof.
+
+## Batch Window
+
+Each batch covers exactly 1 minute (60 seconds) of settled orders, aligned to wall-clock boundaries. Orders settle after the poll cutoff are deferred to the next batch.
+
+## Batch Contents
+
+| Field | Description |
+|-------|-------------|
+| `batchId` | UUID |
+| `windowStart` / `windowEnd` | UTC timestamps bounding the 1-minute window |
+| `trades[]` | All SETTLED orders: stake, outcome, gross payout, price band, market |
+| `ohlc[]` | 5-second OHLC candles from ClickHouse for each window in the batch |
+| `deposits[]` | Deposits credited during the window |
+| `withdrawals[]` | Withdrawals finalized during the window |
+| `merkleRoot` | SHA-256 Merkle root over all payout leaves |
+| `nullifier` | Batch-level anti-double-settlement hash |
+| `status` | `PENDING` → `ZK_PROVEN` → `ON_CHAIN` |
+
+The full batch JSON is the direct input to the SP1 ZK circuit, which re-derives every outcome from OHLC data independently.
+
+---
+
+## Merkle Tree
+
+A binary SHA-256 tree over all payout leaves (winning orders only). Each leaf:
+
+$$\text{leaf}_i = H\!\left(\texttt{"payout"} \,\|\, \text{batchId} \,\|\, \text{tradeId} \,\|\, \text{traderPubkey} \,\|\, \text{payout} \,\|\, \text{index}\right)$$
+
+The `"payout"` domain separator prevents leaf pre-images from being confused with internal node hashes. Tree is padded to the next power of two with zero-valued leaves.
+
+Only the 32-byte root is stored on-chain. Winners supply the inclusion proof (sibling hashes from their leaf to the root) to `distribute_winnings`. The program verifies in $O(\log n)$ — cost doesn't grow with batch size.
+
+---
+
+## Batch Nullifier
+
+$$\text{nullifier} = H\!\left(\text{batchId} \,\|\, \text{sort}(\text{tradeIds})\right)$$
+
+Trade IDs are sorted lexicographically so the nullifier is deterministic regardless of processing order. When the keeper submits a proof, the program checks this nullifier doesn't already exist on-chain. A separate `claim_receipt` PDA prevents double-claiming individual leaves.
+
+---
+
+## Trustless Claiming
+
+Once a batch is `ON_CHAIN`:
+
+1. Fetch payout leaves from the API (or reconstruct from on-chain events)
+2. Identify your leaf by trade ID
+3. Compute the inclusion proof
+4. Call `distribute_winnings` with leaf data and proof
+
+The program recomputes the leaf hash, verifies the Merkle path against the stored root, checks the leaf nullifier is unspent, and transfers the payout. No trust in the operator required.

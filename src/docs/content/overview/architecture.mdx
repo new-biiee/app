@@ -1,0 +1,46 @@
+import { DocsSystemArchitectureDiagram } from "../../components/WorkflowEmbeds";
+
+# Architecture
+
+<DocsSystemArchitectureDiagram />
+
+---
+
+## Packages
+
+| Package | Role | Open Source |
+|---------|------|-------------|
+| `carnot-frontend` | Vite/React SPA — price grid UI, wallet integration, trade placement, docs | No |
+| `carnot-backend` | NestJS API — order management, real-time price processing, batch worker, settlement coordination | No |
+| `carnot-keeper` | Node.js bot — polls pending batches, invokes SP1 prover, submits proofs to Solana | No |
+| `carnot-sdk` | TypeScript library — PDA derivation, IDL types, protocol constants, Pyth feed IDs | **Yes** |
+| `carnot-programs` | Anchor/Rust Solana program — vault, deposits, ZK settlement verification, payout distribution | **Yes** |
+| `carnot-circuit` | SP1 zkVM Rust circuit — all 28 settlement constraints, Groth16 proving | **Yes** |
+
+---
+
+## Auth Model
+
+| Caller | Endpoint Group | Auth Method |
+|--------|---------------|-------------|
+| Frontend | `/api/*` (user-facing) | JWT Bearer (EVM wallet signature challenge) |
+| Keeper | `/v1/settlement/*` | `X-API-KEY` header |
+| Keeper | `/internal/batch/*` | Bearer token |
+
+Users can't impersonate the keeper, and the keeper can't act on behalf of users. Internal batch endpoints (raw order data) are not exposed on the public API surface.
+
+---
+
+## Infrastructure
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL 15 | 5437 | Orders, batches, accounts |
+| Redis 7.x | 6381 | Rate limiting, session data |
+| Kafka 7.3.2 | 39092 | Price tick fan-out to ClickHouse |
+| ClickHouse 23.8 | 8124 | OHLC candle storage for batch assembly |
+| MinIO | 32126–32127 | ZK proof artifacts, batch data archives |
+
+---
+
+**Next:** [Glossary](/documentation/overview/glossary)

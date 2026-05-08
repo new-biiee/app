@@ -1,0 +1,42 @@
+# What is Carnot
+
+Carnot is a permissionless, ZK-verified prediction market on Solana. You pick a price band, bet on whether the settlement candle closes inside it within a 5-second window, and get your result in under 10 seconds. Every batch of settled orders is committed on-chain as a Groth16 ZK proof — no trusting the operator.
+
+## How Bets Work
+
+The market is a **10×9 grid** of cells emitted every 250 ms per market. Each cell has:
+
+- A price band $[\text{lower}, \text{upper})$ — width is $25 for BTC, and $0.10 for SOL. We will release the same for JUP soon.
+- A 5-second window (`window_start`, `window_end`)
+- A `rewardRate` in basis points (e.g., 15000 bps = 1.5×)
+- A `gridSignature` (HMAC-SHA256) committing the reward rate before the window opens
+
+You win if the settlement candle close falls inside the band. The signature makes retroactive payout manipulation impossible.
+
+## Why ZK Proofs
+
+Without ZK, you'd have to trust the operator for: correct price recording, honest win/loss calculation, and full payouts to winners. Carnot encodes the entire settlement logic in an SP1 zkVM circuit. Every 1-minute batch is proved against 28 constraints and submitted on-chain via `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`, which writes an immutable `batch_receipt` PDA.
+
+## Markets
+
+| Market | Price Feed |
+|--------|------------|
+| BTC/USDT | Binance Futures aggTrade + Pyth |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | Binance Futures aggTrade + Pyth |
+
+## What's Open Source
+
+- **carnot-circuit** — SP1 zkVM Rust circuit, all 28 settlement constraints. Re-run the prover on any batch to verify outcomes.
+- **carnot-programs** — Anchor/Rust Solana program (`carnot_engine`) at `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`.
+- **carnot-sdk** — TypeScript SDK: PDA derivation, IDL types, protocol constants, Pyth feed IDs.
+
+The backend, keeper bot, and frontend are proprietary. On-chain and cryptographic components are fully transparent.
+
+## Pricing Status
+
+The current deployment uses a pre-calibrated, volatility-regime-aware reward rate model. The full production system adds live EGARCH(1,1) + Hawkes volatility estimation, Hawkes-driven jump-diffusion pricing with Sobol QMC path sampling, Kou barrier correction for near-band cells, Avellaneda-Stoikov quoting with a VPIN adverse selection gate, and EVT-calibrated CVaR via Generalized Pareto Distribution for tail risk management.
+
+---
+
+**Next:** [How It Works](/documentation/overview/how-it-works) · [Architecture](/documentation/overview/architecture) · [Quickstart](/documentation/getting-started/quickstart)

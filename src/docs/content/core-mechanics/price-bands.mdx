@@ -1,0 +1,44 @@
+# Price Bands & Outcomes
+
+Every bet is placed on a price band — a fixed interval $[\text{lowerPrice},\, \text{upperPrice})$ for a specific market and 5-second window.
+
+## Band Definition
+
+| Field | Description |
+|-------|-------------|
+| `lowerPrice` | Inclusive lower bound |
+| `upperPrice` | Exclusive upper bound (`lowerPrice + priceCellSize`) |
+
+Fixed band widths per market:
+
+| Market | Band Width |
+|--------|------------|
+| BTC/USDT | $25.00 |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | $0.10 |
+
+The upper bound is exclusive so every price belongs to exactly one band — no ambiguity at boundaries.
+
+---
+
+## Settlement Rule
+
+> The settlement price is the OHLC **close** of the last completed candle whose timestamp is at or before `window_end`.
+
+This rule is enforced identically in two places:
+1. **Backend tick evaluator** — writes `WIN` or `LOSS` to the database
+2. **ZK circuit** — independently recomputes the same candle close and verifies each order's outcome
+
+If they disagreed, the ZK proof would fail.
+
+**WIN:** $\text{settlement\_close} \in [\text{lowerPrice},\, \text{upperPrice})$
+
+**LOSS:** $\text{settlement\_close} \notin [\text{lowerPrice},\, \text{upperPrice})$
+
+---
+
+## Why Candle Close, Not High/Low
+
+Using a price spike (High/Low) would allow intrabar spoofing: place a bet, execute a brief spike into the band, collect the payout. The close requires sustained buying/selling pressure to move, is agreed upon globally across all participants, and is independently fetchable from OHLC APIs.
+
+The Pyth oracle cross-validates the close at three batch checkpoints (max 2% deviation), making it impossible for the backend to fabricate a settlement price that diverges materially from the on-chain oracle.

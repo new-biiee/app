@@ -1,0 +1,167 @@
+# First Integration
+
+Full TypeScript script: deposit USDT → fetch grid → place trade → poll outcome → claim winnings.
+
+## Prerequisites
+
+- `@carnot/sdk`, `@solana/web3.js`, `@coral-xyz/anchor` installed
+- Funded Solana wallet keypair (devnet or mainnet)
+- Carnot API JWT (sign a challenge — see [Authentication](/documentation/api/authentication))
+
+---
+
+## Step 1 — Set Up Connection
+
+```typescript
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
+import {
+  CARNOT_IDL, CARNOT_PROGRAM_ID,
+  findCarnotTraderAccountPda, findCarnotVaultPda,
+  findCarnotNullifierPda, findCarnotBatchReceiptPda,
+} from '@carnot/sdk';
+import fs from 'fs';
+
+const wallet = Keypair.fromSecretKey(
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.WALLET_KEYPAIR_PATH!, 'utf-8')))
+);
+const connection = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');
+const provider = new AnchorProvider(connection, {
+  publicKey: wallet.publicKey,
+  signTransaction: async (tx) => { tx.sign(wallet); return tx; },
+  signAllTransactions: async (txs) => txs.map(tx => { tx.sign(wallet); return tx; }),
+}, { commitment: 'confirmed' });
+
+const programId = new PublicKey(CARNOT_PROGRAM_ID);
+const program = new Program(CARNOT_IDL, programId, provider);
+const API_BASE = process.env.CARNOT_API_URL!;
+```
+
+---
+
+## Step 2 — Derive Trader PDA
+
+```typescript
+const [traderPda] = findCarnotTraderAccountPda(wallet.publicKey, programId);
+console.log('Trader PDA:', traderPda.toBase58());
+```
+
+The PDA uses seed `["trader", wallet.publicKey.toBytes()]`. Created automatically on first deposit.
+
+---
+
+## Step 3 — Deposit USDT
+
+```typescript
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { CARNOT_CONSTANTS } from '@carnot/sdk';
+
+const USDT_MINT = new PublicKey(CARNOT_CONSTANTS.USDT_MINT_ADDRESS);
+const [vaultPda] = findCarnotVaultPda(programId);
+const userUsdtAta = await getAssociatedTokenAddress(USDT_MINT, wallet.publicKey);
+const vaultUsdtAta = await getAssociatedTokenAddress(USDT_MINT, vaultPda, true);
+
+const depositTx = await program.methods
+  .traderDeposit(new BN(100 * 1_000_000))  // 100 USDT in micro-USDT
+  .accounts({
+    trader: wallet.publicKey, traderAccount: traderPda,
+    vault: vaultPda, userTokenAccount: userUsdtAta,
+    vaultTokenAccount: vaultUsdtAta, tokenMint: USDT_MINT,
+  })
+  .signers([wallet]).rpc();
+
+console.log('Deposit tx:', depositTx);
+```
+
+---
+
+## Step 4 — Fetch Grid and Place Trade
+
+```typescript
+const JWT = process.env.CARNOT_JWT!;
+
+const grid = await fetch(`${API_BASE}/api/grid?market=BTC_USDT`, {
+  headers: { Authorization: `Bearer ${JWT}` },
+}).then(r => r.json());
+
+const cell = grid.cells[0];  // pick by strategy in production
+
+const order = await fetch(`${API_BASE}/api/orders`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${JWT}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ market: 'BTC_USDT', cell, stake_usdt: 10, direction: 'IN' }),
+}).then(r => r.json());
+
+console.log('Order:', order.id, '— status:', order.status);
+```
+
+The `cell` object must come directly from `gridUpdate` — don't modify any field or the HMAC check fails. The `gridSignature` commits the reward rate before the window opened, ruling out retroactive payout manipulation.
+
+---
+
+## Step 5 — Poll for Settlement
+
+```typescript
+const waitForSettlement = async (orderId: string): Promise<any> => {
+  while (true) {
+    const orders = await fetch(`${API_BASE}/api/orders/user`, {
+      headers: { Authorization: `Bearer ${JWT}` },
+    }).then(r => r.json());
+    const settled = orders.find((o: any) => o.id === orderId && o.status === 'SETTLED');
+    if (settled) return settled;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+};
+
+const settled = await waitForSettlement(order.id);
+console.log('Outcome:', settled.outcome, '— Payout:', settled.payout_usdt, 'USDT');
+```
+
+---
+
+## Step 6 — Claim Winnings After Batch Settlement
+
+Payouts are processed in 1-minute batches. After the keeper submits the Groth16 proof on-chain:
+
+```typescript
+const getMerkleProof = async (orderId: string): Promise<any> => {
+  while (true) {
+    const res = await fetch(`${API_BASE}/api/orders/${orderId}/merkle-proof`, {
+      headers: { Authorization: `Bearer ${JWT}` },
+    });
+    if (res.ok) return res.json();
+    await new Promise(r => setTimeout(r, 30_000));
+  }
+};
+
+const proofData = await getMerkleProof(order.id);
+// proofData: { batch_id, merkle_root, proof_nodes: string[], leaf_index, payout_usdt }
+
+const batchId = new BN(proofData.batch_id);
+const [batchReceiptPda] = findCarnotBatchReceiptPda(batchId, programId);
+const [nullifierPda] = findCarnotNullifierPda(wallet.publicKey, batchId, programId);
+
+const claimTx = await program.methods
+  .distributeWinnings(
+    batchId,
+    new BN(proofData.payout_usdt * 1_000_000),
+    proofData.proof_nodes.map((n: string) => Buffer.from(n, 'hex'))
+  )
+  .accounts({
+    claimer: wallet.publicKey, traderAccount: traderPda,
+    batchReceipt: batchReceiptPda, nullifier: nullifierPda,
+    vault: vaultPda, vaultTokenAccount: vaultUsdtAta,
+    claimerTokenAccount: userUsdtAta, tokenMint: USDT_MINT,
+  })
+  .signers([wallet]).rpc();
+
+console.log('Claim tx:', claimTx);
+```
+
+`distribute_winnings`:
+1. Verifies Merkle proof against `batch_receipt.merkle_root`
+2. Checks nullifier PDA doesn't exist (replay protection)
+3. Transfers USDT from vault to your token account
+4. Creates nullifier PDA permanently
+
+You don't need to run the prover — the keeper handles batch assembly, ZK proving, and on-chain submission automatically.

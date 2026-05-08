@@ -1,0 +1,91 @@
+# Installation
+
+## Install the SDK
+
+```bash
+npm install @carnot/sdk
+# or: yarn add @carnot/sdk  /  pnpm add @carnot/sdk
+```
+
+Peer dependencies:
+
+```bash
+npm install @solana/web3.js @coral-xyz/anchor
+```
+
+---
+
+## What the SDK Exports
+
+```typescript
+import {
+  // PDA Derivation
+  findCarnotTraderAccountPda,
+  findCarnotBatchReceiptPda,
+  findCarnotNullifierPda,
+  findCarnotVaultPda,
+
+  // Types
+  TraderAccount, BatchReceipt, OrderStatus, VolatilityRegime,
+  SettlementCell, MarketConfig,
+
+  // Program IDL (for use with @coral-xyz/anchor)
+  CARNOT_IDL,
+
+  // Constants
+  CARNOT_PROGRAM_ID,
+  CARNOT_CONSTANTS,
+  PYTH_FEED_IDS,
+} from '@carnot/sdk';
+```
+
+---
+
+## Protocol Constants
+
+| Constant | Value |
+|----------|-------|
+| `CARNOT_PROGRAM_ID` | `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS` |
+| `KEEPER_FEE_BPS` | `25` |
+| `PROTOCOL_FEE_BPS` | `100` |
+| `MIN_SOLVENCY_RATIO_BPS` | `15000` |
+| `MAX_UTILIZATION_BPS` | `7000` |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | `200` |
+| `CVAR_CONFIDENCE_BPS` | `9500` |
+| `PYTH_FEED_IDS.BTC_USDT` | `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43` |
+| `PYTH_FEED_IDS.JUP_USDT` | Coming Soon |
+| `PYTH_FEED_IDS.SOL_USDT` | `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d` |
+
+---
+
+## Environment Variables
+
+```bash
+NETWORK=devnet                              # or mainnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+CARNOT_API_URL=https://api.devnet.carnot.fi
+WALLET_KEYPAIR_PATH=~/.config/solana/id.json
+```
+
+---
+
+## Basic Usage
+
+```typescript
+import { Connection, PublicKey } from '@solana/web3.js';
+import { findCarnotTraderAccountPda, findCarnotVaultPda, CARNOT_PROGRAM_ID } from '@carnot/sdk';
+
+const connection = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');
+const programId = new PublicKey(CARNOT_PROGRAM_ID);
+const walletPublicKey = new PublicKey('YOUR_WALLET_ADDRESS');
+
+const [traderPda] = findCarnotTraderAccountPda(walletPublicKey, programId);
+const [vaultPda] = findCarnotVaultPda(programId);
+
+console.log('Trader PDA:', traderPda.toBase58());
+console.log('Vault PDA:', vaultPda.toBase58());
+```
+
+---
+
+**Next:** [First Integration](/documentation/getting-started/first-integration) — full deposit → trade → claim script

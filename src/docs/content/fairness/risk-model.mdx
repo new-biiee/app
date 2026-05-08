@@ -1,0 +1,67 @@
+import { DocsRiskManagementDiagram } from "../../components/WorkflowEmbeds";
+
+# Risk Model
+
+## CVaR — Primary Risk Measure
+
+Carnot uses **CVaR** (Conditional Value at Risk / Expected Shortfall) at 95% confidence:
+
+$$\text{CVaR}_{0.95} = E\!\left[\text{Loss} \;\middle|\; \text{Loss} > \text{VaR}_{0.95}\right]$$
+
+CVaR answers: "Given we're in the worst 5% of outcomes, what's the expected loss?" CVaR is more appropriate than VaR for a pool that must stay solvent in tail scenarios — it characterizes tail severity, not just the threshold.
+
+In the current deployment, CVaR constraints are enforced through static guardrails. The full production system computes CVaR dynamically using **EVT-calibrated tail estimation** via Generalized Pareto Distribution.
+
+## EVT-Calibrated CVaR (Full System)
+
+Extreme Value Theory fits the tail of pool loss distributions directly — more accurate in extreme regimes where scenario counts are inherently low.
+
+Peaks-over-Threshold: fit a **Generalized Pareto Distribution** to pool loss outcomes exceeding threshold $u$:
+
+$$F_u(x) = 1 - \left(1 + \frac{\xi x}{\beta}\right)^{-1/\xi}$$
+
+Closed-form CVaR from the GPD fit:
+
+$$\text{CVaR}_{0.95} = \frac{\text{VaR}_{0.95} + \beta - \xi u}{1 - \xi}$$
+
+Shape parameter $\xi$ determines tail heaviness: $\xi > 0$ is heavy-tailed (Pareto-like), $\xi = 0$ is exponential (Gumbel). BTC/SOL loss distributions empirically exhibit $\xi > 0$, which Monte Carlo systematically underestimates. If $\text{CVaR}_{0.95}$ exceeds the pool's risk budget, `MAX_UTILIZATION_BPS` and `MAX_SINGLE_BET_EXPOSURE_BPS` are tightened automatically.
+
+<DocsRiskManagementDiagram />
+
+## VolatilityRegime
+
+The program maintains an on-chain `VolRegime` enum controlling max multipliers and fortress spread:
+
+| Regime | `maxMultiplier` | `fortressSpreadBps` |
+|--------|-----------------|---------------------|
+| LOW | Higher | 100 |
+| NORMAL | 100× | 150 |
+| HIGH | Lower | 300 |
+| EXTREME | Lowest | 500 |
+
+**Current deployment:** NORMAL (maxMultiplier = 100×, fortressSpreadBps = 150 bps).
+
+In higher-volatility regimes, `maxMultiplier` drops (capping per-bet pool exposure) and `fortressSpreadBps` widens (embedding more edge per multiplier to compensate for higher payout variance).
+
+## Risk Parameters
+
+| Parameter | Value | Meaning |
+|-----------|-------|---------|
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | Pool ≥ 1.5× liability |
+| `MAX_UTILIZATION_BPS` | 7,000 | Max 70% of pool at risk |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | Single bet payout ≤ 2% of pool |
+| `CVAR_CONFIDENCE_BPS` | 9,500 | 95% CVaR confidence |
+| `PLATFORM_EDGE_BPS` | 700 | 7% embedded in multipliers |
+| `KEEPER_FEE_BPS` | 25 | 0.25% of `|net_payout|` |
+| `PROTOCOL_FEE_BPS` | 100 | 1% of `|net_payout|` (pool-gains only) |
+
+## POC vs Production
+
+| Feature | Current | Full Production |
+|---------|---------|-----------------|
+| CVaR computation | Static constants | EVT-calibrated GPD tail fit per tick |
+| Volatility input | Fixed (0.45) | EGARCH(1,1) + Hawkes process |
+| Regime transitions | Fixed (NORMAL) | Automatic on $\sigma_t$ thresholds |
+| Utilization cap | Static | Dynamic (tightens when CVaR exceeds budget) |
+
+Current static constants are conservative by design: calibrated against historical BTC/SOL volatility distributions to keep the pool well within CVaR budget under adverse conditions.

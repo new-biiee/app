@@ -1,0 +1,27 @@
+# Glossary
+
+| Term | Definition |
+|------|------------|
+| **Band** | A price range $[\text{lower\_bound}, \text{upper\_bound})$ for a given market. A trade wins if the settlement candle close lands inside the band. |
+| **Batch** | A 1-minute window of settled orders assembled by the Worker and sent to the keeper for ZK proof generation. |
+| **Batch Receipt** | On-chain PDA written by `verify_and_settle` after successful proof verification. Contains the Merkle root, batch ID, and settlement timestamp. |
+| **Cell** | One element in the price grid: a signed 5-second trading window paired with a specific price band and a `rewardRate` multiplier. |
+| **CVaR** | Conditional Value at Risk — a risk metric bounding expected loss in the tail of the payout distribution, used to keep the vault solvent under adverse scenarios. |
+| **EWMA** | Exponentially Weighted Moving Average — used to estimate short-term volatility feeding into `VolatilityRegime` classification. |
+| **Fortress Spread** | A controlled house edge built into band pricing via `fortressSpreadBps`. Widens the effective band required for a win, creating a spread between fair value and offered payouts. |
+| **Grid** | The 10×9 array of cells emitted every 250 ms per market. Each cell is a tradeable band + window combination. |
+| **Groth16** | The pairing-based SNARK used for on-chain settlement verification. Constant 256-byte proof size, verified in one Solana instruction via native BN254 precompile. |
+| **Keeper** | Off-chain Node.js bot that polls for pending settlement batches, invokes the SP1 prover, and submits `verify_and_settle` to Solana. |
+| **Market** | A trading pair (e.g., BTC/USDT) with its own price feed, band configuration, and VolatilityRegime. |
+| **Merkle Root** | SHA-256 tree root over all winner payouts in a batch. Stored on-chain in `batch_receipt`; winners prove inclusion to claim. |
+| **Multiplier** | Payout ratio in basis points (e.g., 15000 bps = 1.5×). Same as `rewardRate`. |
+| **Nullifier** | One-time PDA created on-chain at settlement or claim. Its existence permanently prevents replay of that batch or claim. |
+| **OHLC** | Open/High/Low/Close price candle. Carnot constructs 5-second OHLC candles from Binance Futures aggTrade; the **Close** price determines win/loss. |
+| **PDA** | Program-Derived Account — a deterministic Solana account address with no private key, owned by the program. |
+| **Reward Rate** | Payout multiplier offered on a cell, in basis points. Signed by the backend before window opens. Same as *Multiplier*. |
+| **Settlement Candle** | The 5-second OHLC candle whose **Close** determines WIN or LOSS. Constructed from Binance Futures aggTrade and cross-validated against Pyth. |
+| **SP1 zkVM** | Succinct Labs' RISC-V-based ZK virtual machine. Carnot's settlement circuit is written in Rust, compiled to SP1, which generates the Groth16 proof. |
+| **USDT** | USD Tether (SPL token on Solana) — the only denomination for stakes, payouts, and vault balances. |
+| **Vault** | On-chain USDT pool managed by `carnot_engine`. Funds only move via verified `distribute_winnings` instructions. |
+| **VolatilityRegime** | Classification (`LOW` / `NORMAL` / `HIGH` / `EXTREME`) derived from EWMA volatility. Controls `maxMultiplier` and `fortressSpreadBps` per market. |
+| **Window** | The 5-second time interval for a cell, defined by `window_start` and `window_end` Unix timestamps. |

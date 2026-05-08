@@ -1,0 +1,76 @@
+import { DocsZkSettlementProofDiagram } from "../../components/WorkflowEmbeds";
+
+# Batch Assembly
+
+Every minute the Worker wakes up and assembles a settlement batch — a self-contained record that is fed directly into the ZK circuit.
+
+<DocsZkSettlementProofDiagram />
+
+## Backend Service Flow (for this diagram)
+
+1. **Settlement Worker prepares inputs:** trades, commitment hashes, OHLC candles, Pyth checkpoints, and batch metadata are assembled into a deterministic SP1 input payload.
+2. **Circuit stage A/B checks integrity:** ordering rules, duplicate prevention, candle validity, and Pyth-vs-OHLC deviation checks run first.
+3. **Circuit stage C/D settles finance:** winners/losers and gross payouts are computed, then pool accounting and fee invariants are enforced.
+4. **Public output commitment is produced:** all validated outputs are collapsed into one SHA-256 hash.
+5. **Keeper submits on-chain proof:** SP1 wraps execution into Groth16 and the keeper calls `verify_and_settle` using the hash-bound proof.
+
+## Assembly Steps
+
+1. Query `SETTLED` orders from PostgreSQL for the current window
+2. Fetch 5-second OHLC candles from ClickHouse for the window range
+3. Query deposit and withdrawal history from PostgreSQL
+4. Compute payout per order
+5. Build binary SHA-256 Merkle tree over payout leaves
+6. Compute net pool delta and fee amounts
+7. Write `settlement_batch` with status `PENDING`
+
+## Batch Contents
+
+| Field | Description |
+|-------|-------------|
+| `windowStart` / `windowEnd` | UTC timestamps for the 1-minute window |
+| `trades[]` | All SETTLED orders: stake, outcome, gross payout, price band, market |
+| `ohlc[]` | 5-second OHLC candles from ClickHouse |
+| `deposits[]` | Deposits credited during the window |
+| `withdrawals[]` | Withdrawals finalized during the window |
+| `merkleRoot` | Root of the binary SHA-256 payout Merkle tree |
+| `netPoolDelta` | Aggregate pool change (positive = net user loss, negative = net user win) |
+| `keeperFee` | 0.25% of `|netPoolDelta|` |
+| `protocolFee` | 1% of `|netPoolDelta|` (pool-gains batches only) |
+| `batchNullifier` | Unique value preventing double-settlement |
+
+The full batch JSON is passed directly to the SP1 circuit. The circuit re-derives all outcomes from OHLC data and validates them against `trades[]` — any discrepancy fails proof generation.
+
+## Merkle Tree Construction
+
+Each winning trade produces one payout leaf:
+
+```
+leaf = SHA256("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)
+```
+
+Leaves are sorted by `trade_id`, tree padded to the next power of two with empty leaves. Winners claim by submitting a Merkle inclusion proof to `distribute_winnings`.
+
+## Batch Lifecycle
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Assembled, waiting for keeper |
+| `ZK_PROVING` | Keeper fetched batch data (implicit transition) |
+| `COMMITTED` | Keeper submitted on-chain and posted to `/committed` |
+
+## Accounting Invariants
+
+The ZK circuit checks both:
+
+```
+pool_balance_after = pool_balance_before + sum(losing_stakes) - sum(winning_payouts) - keeper_fee - protocol_fee
+
+netPoolDelta = sum(losing_stakes) - sum(winning_payouts)
+```
+
+If either identity fails, proof generation fails.
+
+## Empty Windows
+
+Empty batches (no settled orders) are still assembled and proved. This maintains a continuous audit trail and lets the on-chain program verify liveness with no gaps in batch sequence.

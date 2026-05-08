@@ -1,0 +1,83 @@
+import { DocsOracleBindingDiagram } from "../../components/WorkflowEmbeds";
+
+# Circuit Constraints
+
+The Carnot settlement circuit verifies **28 constraints** across **6 groups** (A–F). Any single failure aborts proof generation — the Solana program will reject the settlement transaction.
+
+Circuit source: `carnot-circuit/` (open source, Rust, runs on SP1 zkVM).
+
+## Oracle cross-check (Group B preview)
+
+<DocsOracleBindingDiagram />
+
+## Constraint Reference
+
+| Group | Constraint | What It Checks | Attack Prevented |
+|-------|-----------|----------------|-----------------|
+| **A — Trade Validity** | A1 | Each trade's SHA-256 commitment hash matches the on-chain record for that `trade_id` | Operator forging or altering trade data after placement |
+| | A2 | `sorted_trade_ids` are strictly ascending (O(N) adjacency check) | Duplicate trade IDs inflating payouts |
+| | A3 | Trades sorted by `trader_pubkey` before streaming hash | Enables single linear-time SHA-256 pass |
+| | A4 | `multiplier_bps ∈ [10000, market_max_multiplier]` for every trade | Infinite-payout attack via fabricated multiplier |
+| | A5 | Each trade's window is fully inside the batch window | Out-of-window trade insertion |
+| **B — OHLC / Oracle Validity** | B1 | OHLC ticks in strictly chronological order | Time-reversal attacks picking favorable candles |
+| | B2 | `low ≤ open ≤ high` and `low ≤ close ≤ high` for every candle | Internally inconsistent fabricated candles |
+| | B3 | OHLC sequence covers the entire batch window without gaps | Operator omitting unfavorable price intervals |
+| | B4 | Exactly 3 Pyth checkpoints exist, strictly sorted by `publish_time` | Adding/removing/reordering checkpoints to shift oracle anchor |
+| | B5 | *(Reserved)* | — |
+| | B6 | Each Pyth checkpoint price is within `MAX_DEVIATION_BPS` (200 bps) of the nearest OHLC close | Fabricated OHLC diverging from on-chain oracle |
+| **C — Outcome Determination** | C1–C3 | Settlement candle correctly identified; close-in-band determination computed correctly | Wrong win/loss assignments |
+| | C4 | `gross_payout = stake × multiplier_bps / 10_000` for every winner | Payout inflation beyond agreed multiplier |
+| **D — Pool Solvency** | D1 | `pool_balance_after` satisfies the conservation identity | Pool draining via misreported balance |
+| | D2 | *(Reserved)* | — |
+| | D3 | `keeper_fee = \|net_payout\| × keeper_fee_bps / 10_000` | Keeper inflating its own fee |
+| | D4 | `protocol_fee` only charged when `net_payout < 0` | Protocol fee extraction when pool is paying out winners |
+| | D5 | *(Removed — enforced on-chain instead)* | Was in-circuit solvency re-check; moved to Solana program for gas optimization |
+| | D6 | `num_winners + num_losers = num_trades` | Trade count manipulation; silent drops or double-counts |
+| **E — Commitment** | E1 | `payouts_commitment` equals the Merkle root computed inside the circuit | Operator submitting false Merkle root enabling fraudulent claims |
+| **F — Uniqueness** | F1–F2 | No duplicate `trade_id` values (sorted adjacency check) | Double-counting a trade to inflate payout |
+| | F3 | `stake > 0` for every trade | Zero-stake ghost trades affecting statistics |
+
+---
+
+## Group Summaries
+
+**A — Trade Validity:** A1 is the core integrity check — recomputes each trade's SHA-256 commitment from its fields and confirms it matches the on-chain record. A2 and F1–F2 eliminate duplicate attacks via sorted adjacency in O(N).
+
+**B — Price Data Integrity:** B1–B3 establish OHLC forms a coherent, gapless sequence. B4 requires exactly 3 Pyth checkpoints (no cherry-picking). B6 is the oracle bridge: constrains OHLC within 200 bps of Pyth, making it computationally infeasible to fabricate candles that diverge from the live market.
+
+**C — Outcome & Payout:** C1–C3 determine win/loss from settlement candle close vs. price band. C4 enforces exact payout arithmetic — no rounding errors, no inflation.
+
+**D — Pool Accounting:** D1 enforces the pool balance transition formula. D3–D4 constrain fees to agreed rates. D6 ensures trade count consistency. D5 was moved to the on-chain program to avoid redundant in-circuit computation.
+
+**E — Merkle Commitment:** E1 is the gateway for winner claims. The circuit builds the binary SHA-256 Merkle tree over all payout leaves and stores the root as `payouts_commitment`, which becomes the on-chain anchor in `batch_receipt`.
+
+**F — Uniqueness:** Belt-and-suspenders deduplication alongside A2. F3 rejects zero-stake trades.
+
+---
+
+## 20-Field Public Output Preimage
+
+All constraint outputs collapse into one SHA-256 hash (`public_outputs_hash`) submitted on-chain. Fields in canonical order:
+
+1. `batch_id` — `[u8; 32]`
+2. `window_start` — `i64`
+3. `window_end` — `i64`
+4. `num_trades` — `u32`
+5. `market_regime_id` — `u64`
+6. `market_max_multiplier` — `u32`
+7. `pyth_checkpoints_hash` — `[u8; 32]`
+8. `pool_balance_before` — `u64`
+9. `pool_balance_after` — `u64`
+10. `current_liability_before` — `u64`
+11. `net_payout` — `i64`
+12. `keeper_fee` — `u64`
+13. `protocol_fee` — `u64`
+14. `num_winners` — `u32`
+15. `num_losers` — `u32`
+16. `total_winners_payout` — `u64`
+17. `total_losers_stake` — `u64`
+18. `payouts_commitment` — `[u8; 32]` (Merkle root)
+19. `trades_commitment` — `[u8; 32]` (streaming SHA-256 of all trade hashes)
+20. `nullifier_hash` — `[u8; 32]`
+
+The Solana program recomputes this hash from the 20 parameters in `verify_and_settle` and checks equality against the Groth16 public input. A proof generated for one set of parameters cannot be reused for different ones.

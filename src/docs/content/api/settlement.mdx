@@ -1,0 +1,106 @@
+# Settlement API (Keeper)
+
+These endpoints are for the keeper bot only — not for end users. See [Keeper Bot](/documentation/backend/keeper-bot) for operational context.
+
+## Auth
+
+| Endpoint | Auth |
+|----------|------|
+| `/api/v1/settlement/*`, `/api/v1/strategy/*` | `X-API-KEY: {key}` |
+| `/api/internal/batch/{id}/data` | `Authorization: Bearer {token}` |
+
+## Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/settlement/batches/pending` | X-API-KEY | List pending batches by time window |
+| `POST` | `/api/v1/settlement/batches/{id}/committed` | X-API-KEY | Mark batch committed on-chain |
+| `GET` | `/api/v1/settlement/batches/committed` | X-API-KEY | List committed batches |
+| `GET` | `/api/internal/batch/{id}/data` | Bearer | Full batch JSON for ZK proving |
+| `GET` | `/api/v1/strategy/current` | X-API-KEY | Active volatility regime parameters |
+
+---
+
+## Get Pending Batches
+
+```
+GET /api/v1/settlement/batches/pending?windowStart=1714000000000&windowEnd=1714000060000
+```
+
+```json
+[{
+  "batchId": "bat_4f2a9c...",
+  "windowStart": 1714000000000,
+  "windowEnd": 1714000060000,
+  "status": "PENDING",
+  "tradeCount": 47
+}]
+```
+
+---
+
+## Get Full Batch Data
+
+```
+GET /api/internal/batch/{batchId}/data
+Authorization: Bearer {token}
+```
+
+Returns the full JSON fed directly to the SP1 circuit binary:
+
+```json
+{
+  "batchId": "bat_4f2a9c...",
+  "windowStart": 1714000000000,
+  "windowEnd": 1714000060000,
+  "poolStateBefore": { "totalAssets": "10000000000", "totalLiabilities": "2000000000" },
+  "trades": [{
+    "tradeId": "ord_9a3f2c...", "traderPubkey": "0x...", "marketId": "BTC-USDT",
+    "stake": "1000000", "outcome": "WIN", "grossPayout": "1850000",
+    "lowerPrice": "63500.00", "upperPrice": "64000.00",
+    "startTs": 1714000300000, "endTs": 1714000600000, "index": 0
+  }],
+  "ohlc": [{ "marketId": "BTC-USDT", "ts": 1714000295000, "open": "63520.00", "high": "63610.00", "low": "63490.00", "close": "63580.00" }],
+  "deposits": [{ "depositId": "dep_...", "traderPubkey": "0x...", "amount": "5000000", "ts": 1714000100000 }],
+  "withdrawals": [{ "withdrawalId": "wdr_...", "traderPubkey": "0x...", "amount": "2000000", "ts": 1714000200000 }],
+  "merkleRoot": "0xabc123...",
+  "netPoolDelta": "3000000",
+  "keeperFee": "7500",
+  "protocolFee": "30000",
+  "batchNullifier": "0xdef456..."
+}
+```
+
+The circuit independently re-derives all outcomes from `ohlc[]` and validates against `trades[]` — any discrepancy fails proof generation.
+
+---
+
+## Mark Batch Committed
+
+```
+POST /api/v1/settlement/batches/{batchId}/committed
+{ "txHash": "5xK3aMp9...", "merkleRoot": "0xabc123..." }
+```
+
+Updates batch from `ZK_PROVING` → `COMMITTED`. Returns `200 OK`.
+
+---
+
+## Get Current Strategy
+
+```
+GET /api/v1/strategy/current
+```
+
+```json
+{
+  "regimeId": 2,
+  "regimeName": "elevated_vol",
+  "fortressSpreadBps": 150,
+  "maxMultiplier": 25000,
+  "effectiveTs": 1714000000000,
+  "volatilityIndex": 0.42
+}
+```
+
+Changes in regime affect the reward rates emitted in `gridUpdate` events.

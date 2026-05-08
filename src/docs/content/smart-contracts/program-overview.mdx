@@ -1,0 +1,50 @@
+# Program Overview
+
+`carnot_engine` is a Solana program built with Anchor 0.32.0 in Rust. It handles fund custody, ZK proof verification, batch settlement, and payout distribution.
+
+## Program Identity
+
+| Property | Value |
+|----------|-------|
+| Program Name | `carnot_engine` |
+| Program ID | `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS` |
+| Framework | Anchor 0.32.0 |
+| Language | Rust |
+
+**Dependencies:** Pyth SDK (BTC/USD, JUP/USD*, SOL/USD price feeds for oracle validation), SPL Token (USDT is the sole collateral token).
+---
+Note: Compatibility for *JUP/USD* is under active development and will be released soon.
+
+## PDAs
+
+| PDA | Seeds | Key Fields |
+|-----|-------|------------|
+| `global_state` | `["global"]` | `keeper`, `protocol_fee_bps`, `keeper_fee_bps`, `min_batch_interval_secs`, `admin`, `paused` |
+| `vault_state` | `["vault"]` | USDT SPL token account address |
+| `market_state` | `["market", market_id]` | `pyth_feed_id`, `regime_id`, `fortress_spread_bps`, `max_multiplier`, `vol_regime` |
+| `batch_receipt` | `["batch", batch_id]` | `merkle_root`, `window_start`, `window_end`, `settled`, `market_id`, `num_trades`, `num_winners`, `num_losers` |
+| `nullifier` | `["nullifier", nullifier_hash]` | Existence = batch or claim is permanently finalized |
+| `lp_position` | `["lp_position", lp_pubkey]` | `shares`, `deposited_amount` |
+| `trader_account` | `["trader_account", trader_pubkey]` | `collateral_balance` |
+| `claim_receipt` | `["claim_receipt", batch_id, trade_id]` | `claimed = true` — prevents double-claim per trade |
+
+**Notable design points:**
+
+- `vault_state` is the program's token account authority — only program instructions can move funds
+- `batch_receipt.merkle_root` is set to `payouts_commitment` from the ZK proof — this is what `distribute_winnings` verifies against
+- Nullifier PDAs can only be initialized once (Solana runtime enforces this); attempting to re-initialize reverts before any program logic runs
+- `claim_receipt` seeds include both `batch_id` and `trade_id` — each trade can only be claimed once per batch
+
+---
+
+## Access Control
+
+| Level | Instructions |
+|-------|-------------|
+| Admin only | `admin_init`, `init_market`, `update_market`, `rotate_keeper`, `pause`/`unpause`, `withdraw_protocol_fees` |
+| Keeper only | `verify_and_settle` (signer must match `global_state.keeper`) |
+| LP only | `lp_deposit`, `lp_withdraw` |
+| Trader only | `trader_deposit`, `trader_withdraw`, `place_trade` |
+| Permissionless | `distribute_winnings` (requires valid Merkle proof) |
+
+The keeper key can be rotated via `rotate_keeper` without re-deploying the program.

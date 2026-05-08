@@ -1,0 +1,2735 @@
+
+================================================================================
+# Account & Payments
+URL: https://carnot.finance/documentation/api/account-payments
+================================================================================
+# Account & Payments
+
+All endpoints require `Authorization: Bearer {JWT}`. Amounts are in **micro-USDT** (integer, 6 decimal places — divide by 1,000,000 to get USDT).
+
+---
+
+## Balance
+
+```
+GET /api/account/balance
+```
+
+```json
+{ "free": "5000000", "locked": "1000000", "freeTap": "250000" }
+```
+
+| Field | Description |
+|-------|-------------|
+| `free` | Available — can be staked or withdrawn |
+| `locked` | In open orders — released on settlement |
+| `freeTap` | Testnet faucet credit (separate from main balance) |
+
+---
+
+## Payment Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/payment/debug/deposit` | Test deposit — testnet only |
+| `POST` | `/api/payment/withdraw` | Initiate withdrawal |
+| `POST` | `/api/payment/debug/finalize-withdrawal` | Finalize withdrawal — testnet only |
+| `GET` | `/api/payment/deposits` | Deposit history |
+| `GET` | `/api/payment/withdrawals` | Withdrawal history |
+
+---
+
+## Deposits
+
+**Debug deposit (testnet only):**
+
+```
+POST /api/payment/debug/deposit
+{ "amount": "10000000" }
+```
+
+Immediately credits `free` balance. Returns `403 Forbidden` on mainnet.
+
+**Production deposits:** Send USDT to the Carnot vault PDA on Solana:
+
+```typescript
+findCarnotVaultPda(programId)  // from @carnot/sdk
+```
+
+The backend detects the on-chain deposit event and credits your account after confirmation.
+
+---
+
+## Withdrawals
+
+**Initiate:**
+
+```
+POST /api/payment/withdraw
+{ "amount": "5000000", "destinationAddress": "0xYourEvmWalletAddress" }
+```
+
+Moves funds from `free` to pending. Response includes `withdrawalId` and status `PENDING`.
+
+**Debug finalize (testnet only):**
+
+```
+POST /api/payment/debug/finalize-withdrawal
+{ "withdrawalId": "wdr_2e9f4a..." }
+```
+
+On mainnet, finalization happens after batch ZK proof is committed on-chain. Expect on the order of minutes under normal conditions (batches are proved every minute).
+
+**Withdrawal statuses:**
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Awaiting batch inclusion |
+| `BATCHED` | In a settlement batch, awaiting ZK proof |
+| `FINALIZED` | Proof on-chain, funds released |
+| `CANCELLED` | Cancelled before finalization |
+
+---
+
+**Notes:**
+- Debug endpoints return `403 Forbidden` on mainnet.
+- `locked` balance is not withdrawable — wait for open orders to settle.
+- Always pass amounts as strings, not numbers, to avoid JSON float precision issues.
+
+
+================================================================================
+# Authentication
+URL: https://carnot.finance/documentation/api/authentication
+================================================================================
+# Authentication
+
+Carnot uses EVM wallet signature challenges. Sign a backend-issued nonce to prove wallet ownership; receive a JWT for all subsequent API calls.
+
+## Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/challenge` | — | Get a one-time nonce for a wallet address |
+| `POST` | `/api/auth/login` | — | Submit signed nonce, receive JWT |
+| `GET` | `/api/auth/wss-key` | JWT Bearer | Get a short-lived WebSocket session key |
+
+## Flow
+
+**Step 1 — Get challenge**
+
+```
+GET /api/auth/challenge?address={wallet_address}
+```
+
+`wallet_address` must be a valid EVM address (0x-prefixed, 42 chars). Returns a nonce that expires in ~5 minutes.
+
+```json
+{ "nonce": "a3f8c2d1e9b04751..." }
+```
+
+**Step 2 — Sign the nonce**
+
+Sign with `personal_sign` (EIP-191):
+
+```javascript
+const signature = await signer.signMessage(nonce);
+```
+
+**Step 3 — Exchange for JWT**
+
+```
+POST /api/auth/login
+{ "address": "0xYourWalletAddress", "signature": "0xSignedNonce..." }
+```
+
+```json
+{ "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+```
+
+Use the JWT as `Authorization: Bearer {token}` on all protected endpoints. The SDK doesn't auto-refresh — detect `401 Unauthorized` and re-authenticate.
+
+## WebSocket Auth
+
+WebSocket connections use a short-lived `wssKey` instead of the JWT directly (avoids JWT in URLs/browser history):
+
+```
+GET /api/auth/wss-key
+Authorization: Bearer {JWT}
+→ { "wssKey": "wsk_a1b2c3d4e5..." }
+```
+
+## Token Summary
+
+| Token | Issued By | Used For |
+|-------|-----------|---------|
+| JWT | `POST /api/auth/login` | All REST endpoints |
+| wssKey | `GET /api/auth/wss-key` | Socket.IO connection |
+| API Key | Provisioned at deploy | Keeper settlement endpoints |
+| Bearer (keeper) | Provisioned at deploy | Keeper internal batch data |
+
+
+================================================================================
+# Settlement API (Keeper)
+URL: https://carnot.finance/documentation/api/settlement
+================================================================================
+# Settlement API (Keeper)
+
+These endpoints are for the keeper bot only — not for end users. See [Keeper Bot](/documentation/backend/keeper-bot) for operational context.
+
+## Auth
+
+| Endpoint | Auth |
+|----------|------|
+| `/api/v1/settlement/*`, `/api/v1/strategy/*` | `X-API-KEY: {key}` |
+| `/api/internal/batch/{id}/data` | `Authorization: Bearer {token}` |
+
+## Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/settlement/batches/pending` | X-API-KEY | List pending batches by time window |
+| `POST` | `/api/v1/settlement/batches/{id}/committed` | X-API-KEY | Mark batch committed on-chain |
+| `GET` | `/api/v1/settlement/batches/committed` | X-API-KEY | List committed batches |
+| `GET` | `/api/internal/batch/{id}/data` | Bearer | Full batch JSON for ZK proving |
+| `GET` | `/api/v1/strategy/current` | X-API-KEY | Active volatility regime parameters |
+
+---
+
+## Get Pending Batches
+
+```
+GET /api/v1/settlement/batches/pending?windowStart=1714000000000&windowEnd=1714000060000
+```
+
+```json
+[{
+  "batchId": "bat_4f2a9c...",
+  "windowStart": 1714000000000,
+  "windowEnd": 1714000060000,
+  "status": "PENDING",
+  "tradeCount": 47
+}]
+```
+
+---
+
+## Get Full Batch Data
+
+```
+GET /api/internal/batch/{batchId}/data
+Authorization: Bearer {token}
+```
+
+Returns the full JSON fed directly to the SP1 circuit binary:
+
+```json
+{
+  "batchId": "bat_4f2a9c...",
+  "windowStart": 1714000000000,
+  "windowEnd": 1714000060000,
+  "poolStateBefore": { "totalAssets": "10000000000", "totalLiabilities": "2000000000" },
+  "trades": [{
+    "tradeId": "ord_9a3f2c...", "traderPubkey": "0x...", "marketId": "BTC-USDT",
+    "stake": "1000000", "outcome": "WIN", "grossPayout": "1850000",
+    "lowerPrice": "63500.00", "upperPrice": "64000.00",
+    "startTs": 1714000300000, "endTs": 1714000600000, "index": 0
+  }],
+  "ohlc": [{ "marketId": "BTC-USDT", "ts": 1714000295000, "open": "63520.00", "high": "63610.00", "low": "63490.00", "close": "63580.00" }],
+  "deposits": [{ "depositId": "dep_...", "traderPubkey": "0x...", "amount": "5000000", "ts": 1714000100000 }],
+  "withdrawals": [{ "withdrawalId": "wdr_...", "traderPubkey": "0x...", "amount": "2000000", "ts": 1714000200000 }],
+  "merkleRoot": "0xabc123...",
+  "netPoolDelta": "3000000",
+  "keeperFee": "7500",
+  "protocolFee": "30000",
+  "batchNullifier": "0xdef456..."
+}
+```
+
+The circuit independently re-derives all outcomes from `ohlc[]` and validates against `trades[]` — any discrepancy fails proof generation.
+
+---
+
+## Mark Batch Committed
+
+```
+POST /api/v1/settlement/batches/{batchId}/committed
+{ "txHash": "5xK3aMp9...", "merkleRoot": "0xabc123..." }
+```
+
+Updates batch from `ZK_PROVING` → `COMMITTED`. Returns `200 OK`.
+
+---
+
+## Get Current Strategy
+
+```
+GET /api/v1/strategy/current
+```
+
+```json
+{
+  "regimeId": 2,
+  "regimeName": "elevated_vol",
+  "fortressSpreadBps": 150,
+  "maxMultiplier": 25000,
+  "effectiveTs": 1714000000000,
+  "volatilityIndex": 0.42
+}
+```
+
+Changes in regime affect the reward rates emitted in `gridUpdate` events.
+
+
+================================================================================
+# Trading API
+URL: https://carnot.finance/documentation/api/trading
+================================================================================
+# Trading API
+
+All trading endpoints require `Authorization: Bearer {JWT}`.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/orders` | Place a new order |
+| `GET` | `/api/orders/user` | Get paginated order history |
+
+---
+
+## Place an Order
+
+```
+POST /api/orders
+Authorization: Bearer {JWT}
+```
+
+**Request body:**
+
+```json
+{
+  "cell": {
+    "marketId": "BTC-USDT",
+    "gridTs": 1714000000000,
+    "startTs": 1714000300000,
+    "endTs": 1714000600000,
+    "lowerPrice": "63500.00",
+    "upperPrice": "64000.00",
+    "rewardRate": 18500,
+    "gridSignature": "a3f8c2d1e9b04751..."
+  },
+  "stake": "1000000",
+  "multiplierBps": 15000
+}
+```
+
+The `cell` object must come directly from a `gridUpdate` Socket.IO event — don't modify any field or `gridSignature` validation will fail.
+
+**Response:**
+
+```json
+{
+  "orderId": "ord_9a3f2c...",
+  "status": "PENDING",
+  "marketId": "BTC-USDT",
+  "stake": "1000000",
+  "lowerPrice": "63500.00",
+  "upperPrice": "64000.00",
+  "rewardRate": 18500,
+  "startTs": 1714000300000,
+  "endTs": 1714000600000
+}
+```
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `400` | Invalid/expired `gridSignature` or insufficient balance |
+| `409` | Order on this cell already exists for this user |
+| `429` | Rate limit exceeded |
+
+---
+
+## Order Status & Outcome Enums
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Evaluating against live price stream |
+| `SETTLED` | WIN or LOSS determined, awaiting batch |
+| `OPEN` | In evaluation window |
+| `CANCELLED` | Cancelled before settlement |
+
+| Outcome | Description |
+|---------|-------------|
+| `WIN` | Settlement candle close inside the band |
+| `LOSS` | Settlement candle close outside the band |
+| `null` | Still pending |
+
+---
+
+## Get Order History
+
+```
+GET /api/orders/user?page=1&limit=20&marketId=BTC-USDT&status=SETTLED
+Authorization: Bearer {JWT}
+```
+
+**Response:**
+
+```json
+{
+  "data": [{
+    "orderId": "ord_9a3f2c...",
+    "marketId": "BTC-USDT",
+    "status": "SETTLED",
+    "outcome": "WIN",
+    "stake": "1000000",
+    "payout": "1850000",
+    "lowerPrice": "63500.00",
+    "upperPrice": "64000.00",
+    "startTs": 1714000300000,
+    "endTs": 1714000600000,
+    "settledAt": "2024-04-25T12:10:05.000Z"
+  }],
+  "total": 42,
+  "page": 1,
+  "limit": 20
+}
+```
+
+`payout` is in micro-USDT (divide by 1,000,000 for USDT). It's `"0"` for losses. Outcomes are written within 100–200 ms of `endTs` — subscribe to `orderResult` on Socket.IO for immediate notification.
+
+
+================================================================================
+# WebSocket Events
+URL: https://carnot.finance/documentation/api/websocket
+================================================================================
+# WebSocket Events
+
+Carnot uses Socket.IO v4 over WSS. Price ticks, order results, and the price grid are all pushed — no polling needed.
+
+## Connection
+
+First get a `wssKey` via `GET /api/auth/wss-key` (requires JWT), then:
+
+```typescript
+import { io } from "socket.io-client";
+
+const socket = io("wss://api.carnot.finance", {
+  auth: { token: wssKey },
+  transports: ["websocket"],
+});
+```
+
+## Events
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `newPrice` | Server → Client | `{ marketId, price, ts }` |
+| `orderResult` | Server → Client | `{ orderId, outcome, payout }` |
+| `gridUpdate` | Server → Client | `{ cells: Cell[] }` |
+
+---
+
+## `newPrice`
+
+Emitted on every Binance Futures aggTrade tick. Can be several times per second per market.
+
+```typescript
+socket.on("newPrice", (data: { marketId: string; price: number; ts: number }) => {
+  console.log(`${data.marketId}: $${data.price} at ${data.ts}`);
+});
+```
+
+---
+
+## `orderResult`
+
+Emitted when your order reaches WIN or LOSS, at `window_end` when the settlement candle is evaluated.
+
+```typescript
+socket.on("orderResult", (data: { orderId: string; outcome: "WIN" | "LOSS"; payout: string }) => {
+  if (data.outcome === "WIN") console.log(`Payout: ${Number(data.payout) / 1e6} USDT`);
+});
+```
+
+`payout` is in micro-USDT. This is an off-chain balance credit — to claim on-chain USDT you must submit a Merkle proof via `distribute_winnings` after batch settlement.
+
+---
+
+## `gridUpdate`
+
+Emitted every 250 ms per market with the current signed price grid.
+
+```typescript
+interface Cell {
+  marketId: string; gridTs: number; startTs: number; endTs: number;
+  lowerPrice: string; upperPrice: string; rewardRate: string; gridSignature: string;
+}
+
+socket.on("gridUpdate", (data: { cells: Cell[] }) => {
+  // Verify gridSignature before using rewardRate
+});
+```
+
+`gridSignature` is HMAC-SHA256 over all cell fields. Always verify before submitting an order — a tampered `rewardRate` will fail server-side validation.
+
+---
+
+Socket.IO handles reconnection automatically. If the connection drops mid-trade, the order stays in the backend's evaluation bucket and is settled normally on the next tick.
+
+
+================================================================================
+# Backend Architecture
+URL: https://carnot.finance/documentation/backend/architecture
+================================================================================
+import { DocsFullSystemOverviewDiagram } from "../../components/WorkflowEmbeds";
+import { DocsSystemArchitectureDiagram } from "../../components/WorkflowEmbeds";
+
+# Backend Architecture
+
+<DocsFullSystemOverviewDiagram />
+
+The backend is a single deployable image running as two processes that share PostgreSQL, Redis, Kafka, and ClickHouse.
+
+<DocsSystemArchitectureDiagram />
+
+## Processes
+
+**API Server** handles:
+- REST endpoints (JWT for users, API key for keeper)
+- Socket.IO WebSocket connections (real-time price and order events)
+- Inbound Binance Futures aggTrade WebSocket
+
+**Worker** (1-minute schedule):
+- Queries `SETTLED` orders for the elapsed window
+- Fetches OHLC candles from ClickHouse
+- Fetches deposit/withdrawal history
+- Builds binary SHA-256 Merkle tree over payout leaves
+- Writes `settlement_batch` with status `PENDING`
+
+## Auth Model
+
+| Caller | Endpoints | Auth |
+|--------|-----------|------|
+| Frontend users | `/api/auth/*`, `/api/orders`, `/api/account/*`, `/api/payment/*` | `Authorization: Bearer {JWT}` |
+| Keeper bot | `/api/v1/settlement/*`, `/api/v1/strategy/*` | `X-API-KEY: {key}` |
+| Keeper bot | `/api/internal/batch/*` | `Authorization: Bearer {token}` |
+
+## Infrastructure
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL 15 | 5437 | Orders, batches, accounts |
+| Redis 7.x | 6381 | Rate limiting, session data |
+| Kafka 7.3.2 | 39092 | Price tick fan-out to ClickHouse |
+| ClickHouse 23.8 | 8124 | OHLC candle storage |
+| MinIO | 32126–32127 | ZK proof artifacts, batch data blobs |
+
+## Data Paths
+
+**Hot path (real-time):** Binance Futures aggTrade → in-memory per market → Socket.IO broadcast + 100 ms tick evaluation loop → WIN/LOSS written to PostgreSQL.
+
+**Cold path (batch):** Raw ticks → Kafka → ClickHouse (5-second OHLC candles). Every minute, Worker queries OHLC + settled orders → assembles batch for ZK proving.
+
+---
+
+The on-chain `carnot_engine` program is the ultimate source of truth — it enforces ZK proof validity, solvency, and Merkle-based payouts regardless of backend state. Internal port numbers and database schemas are implementation details that may change; the API surface documented in the API Reference is the stable integration boundary.
+
+
+================================================================================
+# Batch Assembly
+URL: https://carnot.finance/documentation/backend/batch-assembly
+================================================================================
+import { DocsZkSettlementProofDiagram } from "../../components/WorkflowEmbeds";
+
+# Batch Assembly
+
+Every minute the Worker wakes up and assembles a settlement batch — a self-contained record that is fed directly into the ZK circuit.
+
+<DocsZkSettlementProofDiagram />
+
+## Backend Service Flow (for this diagram)
+
+1. **Settlement Worker prepares inputs:** trades, commitment hashes, OHLC candles, Pyth checkpoints, and batch metadata are assembled into a deterministic SP1 input payload.
+2. **Circuit stage A/B checks integrity:** ordering rules, duplicate prevention, candle validity, and Pyth-vs-OHLC deviation checks run first.
+3. **Circuit stage C/D settles finance:** winners/losers and gross payouts are computed, then pool accounting and fee invariants are enforced.
+4. **Public output commitment is produced:** all validated outputs are collapsed into one SHA-256 hash.
+5. **Keeper submits on-chain proof:** SP1 wraps execution into Groth16 and the keeper calls `verify_and_settle` using the hash-bound proof.
+
+## Assembly Steps
+
+1. Query `SETTLED` orders from PostgreSQL for the current window
+2. Fetch 5-second OHLC candles from ClickHouse for the window range
+3. Query deposit and withdrawal history from PostgreSQL
+4. Compute payout per order
+5. Build binary SHA-256 Merkle tree over payout leaves
+6. Compute net pool delta and fee amounts
+7. Write `settlement_batch` with status `PENDING`
+
+## Batch Contents
+
+| Field | Description |
+|-------|-------------|
+| `windowStart` / `windowEnd` | UTC timestamps for the 1-minute window |
+| `trades[]` | All SETTLED orders: stake, outcome, gross payout, price band, market |
+| `ohlc[]` | 5-second OHLC candles from ClickHouse |
+| `deposits[]` | Deposits credited during the window |
+| `withdrawals[]` | Withdrawals finalized during the window |
+| `merkleRoot` | Root of the binary SHA-256 payout Merkle tree |
+| `netPoolDelta` | Aggregate pool change (positive = net user loss, negative = net user win) |
+| `keeperFee` | 0.25% of `|netPoolDelta|` |
+| `protocolFee` | 1% of `|netPoolDelta|` (pool-gains batches only) |
+| `batchNullifier` | Unique value preventing double-settlement |
+
+The full batch JSON is passed directly to the SP1 circuit. The circuit re-derives all outcomes from OHLC data and validates them against `trades[]` — any discrepancy fails proof generation.
+
+## Merkle Tree Construction
+
+Each winning trade produces one payout leaf:
+
+```
+leaf = SHA256("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)
+```
+
+Leaves are sorted by `trade_id`, tree padded to the next power of two with empty leaves. Winners claim by submitting a Merkle inclusion proof to `distribute_winnings`.
+
+## Batch Lifecycle
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Assembled, waiting for keeper |
+| `ZK_PROVING` | Keeper fetched batch data (implicit transition) |
+| `COMMITTED` | Keeper submitted on-chain and posted to `/committed` |
+
+## Accounting Invariants
+
+The ZK circuit checks both:
+
+```
+pool_balance_after = pool_balance_before + sum(losing_stakes) - sum(winning_payouts) - keeper_fee - protocol_fee
+
+netPoolDelta = sum(losing_stakes) - sum(winning_payouts)
+```
+
+If either identity fails, proof generation fails.
+
+## Empty Windows
+
+Empty batches (no settled orders) are still assembled and proved. This maintains a continuous audit trail and lets the on-chain program verify liveness with no gaps in batch sequence.
+
+
+================================================================================
+# Keeper Bot
+URL: https://carnot.finance/documentation/backend/keeper-bot
+================================================================================
+import { DocsZkSettlementProofDiagram } from "../../components/WorkflowEmbeds";
+
+# Keeper Bot
+
+The keeper bridges the backend batch system and the on-chain Solana program. Only the address registered in `global_state.keeper` can submit proofs. Without the keeper, no winnings can be claimed on-chain.
+
+The keeper earns **0.25% of `|netPoolDelta|`** per batch and tracks fees locally in `rewards.db` (SQLite).
+
+<DocsZkSettlementProofDiagram />
+
+## Polling Loop
+
+Roughly every minute (aligned to batch boundaries):
+
+1. `GET /api/v1/settlement/batches/pending?windowStart=X&windowEnd=Y` (X-API-KEY) — find `PENDING` batches
+2. `GET /api/internal/batch/{batchId}/data` (Bearer token) — fetch full batch JSON
+3. Serialize batch JSON as SP1 circuit input
+4. Spawn `./carnot` binary (`SP1_PROVER=local|network`) — wait for Groth16 proof
+5. Call `verify_and_settle` on Solana with the proof and all settlement parameters
+6. `POST /api/v1/settlement/batches/{batchId}/committed` (X-API-KEY) with `{ txHash, merkleRoot }`
+7. Append to `rewards.db`: `{ batchId, txHash, keeperFee, window_start, window_end, merkle_root }`
+
+## Authentication
+
+| Endpoint | Auth |
+|----------|------|
+| `/api/v1/settlement/*` (batch listing, committed) | `X-API-KEY: {key}` |
+| `/api/internal/batch/{id}/data` (full financial data) | `Authorization: Bearer {token}` |
+
+The split provides a privilege boundary — the API key alone can't access full batch data.
+
+## Prover Modes
+
+| Mode | Use Case |
+|------|----------|
+| `SP1_PROVER=local` | Development, testing, small batches |
+| `SP1_PROVER=network` | Production — faster, parallelizable via Succinct Labs network |
+
+Proof generation timeout: **90 seconds** (`PROOF_GENERATION_TIMEOUT_MS = 90_000`). On timeout, the keeper logs an error and retries in the next polling cycle.
+
+## Liveness & Slashing
+
+| Parameter | Value |
+|-----------|-------|
+| `MAX_MISSED_WINDOWS_BEFORE_SLASH` | 3 |
+| `SLASH_RATE_BPS` | 500 (5%) |
+
+Missing 3 consecutive 1-minute windows triggers a 5% slash of the keeper's staked collateral.
+
+## Environment Variables
+
+```bash
+CARNOT_API_URL=https://api.carnot.fi
+CARNOT_API_KEY=<api-key>
+CARNOT_BEARER_TOKEN=<bearer-token>
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+KEEPER_KEYPAIR_PATH=~/.config/solana/keeper.json
+SP1_PROVER=network
+PROOF_GENERATION_TIMEOUT_MS=90000
+```
+
+Run as a persistent service (systemd or container orchestrator) to minimize missed windows.
+
+
+================================================================================
+# Order Engine
+URL: https://carnot.finance/documentation/backend/order-engine
+================================================================================
+# Order Engine
+
+The order engine validates incoming bets, tracks them against the live price stream, and settles them within milliseconds of the window closing.
+
+## Order Submission Validation
+
+User calls `POST /api/orders` with the full cell object (including `gridSignature`) and a stake amount. Four checks must pass:
+
+**1. HMAC signature check**
+Re-derives `HMAC-SHA256(marketId ‖ gridTs ‖ startTs ‖ endTs ‖ lowerPrice ‖ upperPrice ‖ rewardRate, serverKey)` and compares against `gridSignature`. Any mismatch → 400. Prevents users from forging cells with inflated reward rates.
+
+**2. Balance check**
+User's `free` balance must cover the stake. On acceptance, stake moves from `free` to `locked`.
+
+**3. Rate limiting**
+Token bucket per wallet (keyed in Redis). Exceeding the rate → 429. Continuous refill, not bulk resets.
+
+**4. One-cell-per-user**
+A user can't place two active bets on the same cell (same `marketId`, `gridTs`, `lowerPrice`, `upperPrice`). Duplicate → 409. Prevents stacking identical positions.
+
+## Storage
+
+On passing validation:
+- Order written to PostgreSQL with status `PENDING`
+- Order added to in-memory **tick-evaluation bucket**
+
+Both writes are atomic — if the DB write fails, the order never enters the bucket.
+
+## 100ms Tick Evaluation Loop
+
+```
+every 100ms:
+  for each PENDING order:
+    if now >= order.endTs:
+      candle = last OHLC close with close_ts <= order.endTs
+      if candle.close >= order.lowerPrice AND candle.close < order.upperPrice:
+        outcome = WIN
+      else:
+        outcome = LOSS
+      settle(order, outcome)
+```
+
+The settlement candle rule is identical in both the backend evaluator and the ZK circuit — they cannot produce contradictory results.
+
+## On Settlement
+
+1. DB record updated to `SETTLED` with outcome and gross payout
+2. Ledger updated atomically: WIN → `locked` stake released, payout credited; LOSS → `locked` stake transferred to pool
+3. Order removed from in-memory bucket
+4. Socket.IO `orderResult` event emitted: `{ orderId, outcome, payout }`
+
+Settled orders are picked up by the Worker in the next 1-minute batch assembly.
+
+## Security Note
+
+The HMAC cell signature ensures reward rates are set exclusively by the backend pricing model. If the backend is compromised, the on-chain ZK verifier acts as a second line of defense — it re-derives outcomes from OHLC candles independently, so fraudulent payouts can't be committed on-chain without a valid proof.
+
+
+================================================================================
+# Real-Time Price Feed
+URL: https://carnot.finance/documentation/backend/price-feed
+================================================================================
+# Real-Time Price Feed
+
+All price data originates from the Binance Futures aggTrade stream, dispatched to four internal consumers.
+
+## Source
+
+```
+wss://fstream.binance.com/ws/{symbol}@aggTrade
+```
+
+One subscription per market (`btcusdt`, `ethusdt`, `solusdt`). The backend keeps the latest trade per market in memory, deduplicated by `tradeId`. Reconnects automatically with exponential backoff on disconnect.
+
+## Downstream Consumers
+
+### Socket.IO Broadcast (`newPrice`)
+
+Every tick is immediately forwarded to connected frontend clients:
+
+```
+newPrice { marketId, price, ts }
+```
+
+No throttling — every aggTrade tick is forwarded.
+
+### Tick Evaluation (`OrderService.onTick`)
+
+A separate 100 ms timer reads the latest cached price per market and evaluates all open orders whose `endTs` has been reached. This uses the most recent aggTrade seen before the timer fires, not necessarily the exact price at `endTs`. The settlement candle rule (OHLC close) provides the canonical, deterministic outcome.
+
+### OHLC Construction (`OhlcService.processPriceTick`)
+
+Each tick feeds the OHLC builder, aggregating into **5-second candles** (open = first tick, high = max, low = min, close = last tick). Completed candles are written to **ClickHouse** via Kafka. The Worker queries these candles during batch assembly.
+
+### Grid Pricing (`GridService.model`)
+
+Every 250 ms, `GridService` recalculates all cell reward rates using the current mid-price, active volatility regime, fortress spread, and multiplier cap. Signs each cell with the server HMAC key and emits `gridUpdate` via Socket.IO.
+
+## Connection Resilience
+
+If the Binance WebSocket drops:
+1. Tick processing stops immediately
+2. Last known price stays cached — downstream evaluations continue on stale data
+3. Reconnection attempted with exponential backoff
+
+Orders reaching `endTs` while the feed is down are evaluated using the last available OHLC data in ClickHouse. The settlement candle rule maintains continuity.
+
+
+================================================================================
+# Fee Structure
+URL: https://carnot.finance/documentation/core-mechanics/fee-structure
+================================================================================
+# Fee Structure
+
+All fees are in basis points (bps). 1 bps = 0.01%.
+
+## Fee Parameters
+
+| Parameter | Value (bps) | % | Description |
+|---|---|---|---|
+| `KEEPER_FEE_BPS` | 25 | 0.25% | Paid to the keeper per batch |
+| `PROTOCOL_FEE_BPS` | 100 | 1.00% | Paid to protocol treasury (pool-gains batches only) |
+| `PLATFORM_EDGE_BPS` | 700 | 7.00% | Embedded in multiplier calibration — not a deducted fee |
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | 150% | Pool must be ≥ 1.5× total liability |
+| `MAX_UTILIZATION_BPS` | 7,000 | 70% | Max fraction of pool at risk |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | 2.00% | Max single bet payout as fraction of pool |
+
+---
+
+## Formulas
+
+**Gross payout** (per winning trade):
+
+$$\text{gross\_payout} = \text{stake} \times \dfrac{\text{multiplier\_bps}}{10{,}000}$$
+
+**Net payout** (batch level — from pool's perspective):
+
+$$\text{net\_payout} = \sum_{\text{winners}} (\text{gross\_payout}_i - \text{stake}_i) - \sum_{\text{losers}} \text{stake}_j$$
+
+- `net_payout > 0` → pool pays out to winners
+- `net_payout < 0` → pool gains from losers
+
+**Keeper fee** (charged regardless of direction):
+
+$$\text{keeper\_fee} = |\text{net\_payout}| \times \dfrac{25}{10{,}000}$$
+
+**Protocol fee** (only when pool gains, i.e. `net_payout < 0`):
+
+$$\text{protocol\_fee} = |\text{net\_payout}| \times \dfrac{100}{10{,}000}$$
+
+**Pool balance update:**
+
+When `net_payout ≥ 0`:
+$$\text{pool\_after} = \text{pool\_before} - \text{net\_payout} - \text{keeper\_fee}$$
+
+When `net_payout < 0`:
+$$\text{pool\_after} = \text{pool\_before} + |\text{net\_payout}| - \text{keeper\_fee} - \text{protocol\_fee}$$
+
+This pool conservation identity is one of the 28 ZK constraints — invalid updates cause proof generation to fail.
+
+---
+
+## Platform Edge
+
+`PLATFORM_EDGE_BPS = 700` is not deducted as a fee. It's embedded in the multiplier calibration: the fair-value multiplier is scaled down by 7%, so the implied win probability is slightly higher than the true probability. The pool earns a long-run statistical edge uniformly across all cells.
+
+
+================================================================================
+# Price Bands & Outcomes
+URL: https://carnot.finance/documentation/core-mechanics/price-bands
+================================================================================
+# Price Bands & Outcomes
+
+Every bet is placed on a price band — a fixed interval $[\text{lowerPrice},\, \text{upperPrice})$ for a specific market and 5-second window.
+
+## Band Definition
+
+| Field | Description |
+|-------|-------------|
+| `lowerPrice` | Inclusive lower bound |
+| `upperPrice` | Exclusive upper bound (`lowerPrice + priceCellSize`) |
+
+Fixed band widths per market:
+
+| Market | Band Width |
+|--------|------------|
+| BTC/USDT | $25.00 |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | $0.10 |
+
+The upper bound is exclusive so every price belongs to exactly one band — no ambiguity at boundaries.
+
+---
+
+## Settlement Rule
+
+> The settlement price is the OHLC **close** of the last completed candle whose timestamp is at or before `window_end`.
+
+This rule is enforced identically in two places:
+1. **Backend tick evaluator** — writes `WIN` or `LOSS` to the database
+2. **ZK circuit** — independently recomputes the same candle close and verifies each order's outcome
+
+If they disagreed, the ZK proof would fail.
+
+**WIN:** $\text{settlement\_close} \in [\text{lowerPrice},\, \text{upperPrice})$
+
+**LOSS:** $\text{settlement\_close} \notin [\text{lowerPrice},\, \text{upperPrice})$
+
+---
+
+## Why Candle Close, Not High/Low
+
+Using a price spike (High/Low) would allow intrabar spoofing: place a bet, execute a brief spike into the band, collect the payout. The close requires sustained buying/selling pressure to move, is agreed upon globally across all participants, and is independently fetchable from OHLC APIs.
+
+The Pyth oracle cross-validates the close at three batch checkpoints (max 2% deviation), making it impossible for the backend to fabricate a settlement price that diverges materially from the on-chain oracle.
+
+
+================================================================================
+# The Price Grid
+URL: https://carnot.finance/documentation/core-mechanics/price-grid
+================================================================================
+# The Price Grid
+
+The grid is a 10×9 matrix of tradeable cells rebroadcast every 250 ms per market. Each cell is a unique (time window, price band) pair.
+
+## Dimensions
+
+| Dimension | Value | Meaning |
+|-----------|-------|---------|
+| `gridNX` | 10 | Time columns |
+| `gridNY` | 9 | Price rows |
+| Column width | 5 seconds | One 5-second window per column |
+| Refresh rate | 250 ms | Full grid rebroadcast |
+
+The grid covers 50 seconds of future windows at any moment. The 9 rows are centered on the current market price (±4.5 cells).
+
+Price cell sizes:
+
+| Market | Price Cell Size |
+|--------|----------------|
+| BTC/USDT | $25.00 |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | $0.10 |
+
+Cells closer to `now` (left columns) and current price (center rows) have **lower reward rates** — they're more likely to win. Farther cells carry **higher reward rates**.
+
+---
+
+## Cell Structure
+
+```json
+{
+  "marketId":      "BTCUSDT",
+  "startTs":       1714000300000,
+  "endTs":         1714000600000,
+  "lowerPrice":    63500.00,
+  "upperPrice":    64000.00,
+  "rewardRate":    18500,
+  "gridSignature": "a3f8c2d1e9b04751..."
+}
+```
+
+`gridSignature` is HMAC-SHA256 over all cell fields. The backend signs before `startTs` — retroactive reward rate changes invalidate the signature. The ZK circuit verifies that each settled order's reward rate matches the signed cell.
+
+---
+
+## Reward Rate Model
+
+The reward rate is a function of two normalized variables:
+
+$$\text{rewardRate} = f(dx,\, dy)$$
+
+where:
+- $dx = (t_{\text{cell}} - t_{\text{now}}) / \text{gridXSizeMs}$ — normalized time offset
+- $dy = |p_{\text{cell}} - p_{\text{now}}| / \text{priceCellSize}$ — normalized price distance
+
+$f$ is a polynomial-log parametric model calibrated offline via Monte Carlo simulation (GBM price paths) and Brownian Bridge near-barrier adjustment.
+
+| $dx$ (time) | $dy$ (price) | Reward Rate |
+|-------------|--------------|-------------|
+| Low (1 step) | Low (0 bands) | Low |
+| Low (1 step) | High (4+ bands) | High |
+| High (5+ steps) | Low (0 bands) | Medium |
+| High (5+ steps) | High (4+ bands) | Very high |
+
+---
+
+## Grid Staleness
+
+A grid broadcast is valid for at most 500 ms. If the client doesn't receive a refresh within that window, it should stop accepting new order submissions until the next valid `gridUpdate` arrives.
+
+
+================================================================================
+# Settlement Batches
+URL: https://carnot.finance/documentation/core-mechanics/settlement-batches
+================================================================================
+# Settlement Batches
+
+All settled orders within a 1-minute window are aggregated into a **settlement batch** — a self-contained record verified by a single ZK proof.
+
+## Batch Window
+
+Each batch covers exactly 1 minute (60 seconds) of settled orders, aligned to wall-clock boundaries. Orders settle after the poll cutoff are deferred to the next batch.
+
+## Batch Contents
+
+| Field | Description |
+|-------|-------------|
+| `batchId` | UUID |
+| `windowStart` / `windowEnd` | UTC timestamps bounding the 1-minute window |
+| `trades[]` | All SETTLED orders: stake, outcome, gross payout, price band, market |
+| `ohlc[]` | 5-second OHLC candles from ClickHouse for each window in the batch |
+| `deposits[]` | Deposits credited during the window |
+| `withdrawals[]` | Withdrawals finalized during the window |
+| `merkleRoot` | SHA-256 Merkle root over all payout leaves |
+| `nullifier` | Batch-level anti-double-settlement hash |
+| `status` | `PENDING` → `ZK_PROVEN` → `ON_CHAIN` |
+
+The full batch JSON is the direct input to the SP1 ZK circuit, which re-derives every outcome from OHLC data independently.
+
+---
+
+## Merkle Tree
+
+A binary SHA-256 tree over all payout leaves (winning orders only). Each leaf:
+
+$$\text{leaf}_i = H\!\left(\texttt{"payout"} \,\|\, \text{batchId} \,\|\, \text{tradeId} \,\|\, \text{traderPubkey} \,\|\, \text{payout} \,\|\, \text{index}\right)$$
+
+The `"payout"` domain separator prevents leaf pre-images from being confused with internal node hashes. Tree is padded to the next power of two with zero-valued leaves.
+
+Only the 32-byte root is stored on-chain. Winners supply the inclusion proof (sibling hashes from their leaf to the root) to `distribute_winnings`. The program verifies in $O(\log n)$ — cost doesn't grow with batch size.
+
+---
+
+## Batch Nullifier
+
+$$\text{nullifier} = H\!\left(\text{batchId} \,\|\, \text{sort}(\text{tradeIds})\right)$$
+
+Trade IDs are sorted lexicographically so the nullifier is deterministic regardless of processing order. When the keeper submits a proof, the program checks this nullifier doesn't already exist on-chain. A separate `claim_receipt` PDA prevents double-claiming individual leaves.
+
+---
+
+## Trustless Claiming
+
+Once a batch is `ON_CHAIN`:
+
+1. Fetch payout leaves from the API (or reconstruct from on-chain events)
+2. Identify your leaf by trade ID
+3. Compute the inclusion proof
+4. Call `distribute_winnings` with leaf data and proof
+
+The program recomputes the leaf hash, verifies the Merkle path against the stored root, checks the leaf nullifier is unspent, and transfers the payout. No trust in the operator required.
+
+
+================================================================================
+# Trade Lifecycle
+URL: https://carnot.finance/documentation/core-mechanics/trade-lifecycle
+================================================================================
+# Trade Lifecycle
+
+States a trade moves through from submission to on-chain claim:
+
+```
+PENDING → WIN/LOSS → SETTLED → BATCHED → ZK_PROVEN → ON_CHAIN → CLAIMED
+```
+
+---
+
+## States
+
+### PENDING
+
+Accepted by the backend, written to the database. The pool has reserved liquidity to cover the gross payout, and `gridSignature` has been verified.
+
+The tick evaluator checks the order every **100 ms** against the live Binance Futures aggTrade stream. No outcome until the window closes.
+
+### WIN / LOSS
+
+At `window_end`, the settlement candle is evaluated — the OHLC close of the last completed candle with timestamp ≤ `window_end`.
+
+- **WIN:** `settlement_close ∈ [lowerPrice, upperPrice)`
+- **LOSS:** `settlement_close ∉ [lowerPrice, upperPrice)`
+
+This same rule runs in both the backend evaluator and the ZK circuit. Disagreement between the two would cause the proof to fail.
+
+### SETTLED
+
+Immediately after WIN/LOSS determination. Gross payout (or forfeited stake) is recorded. Order awaits batch assembly.
+
+### BATCHED
+
+Every minute, the Worker:
+1. Fetches OHLC candles from ClickHouse
+2. Computes net payouts per order
+3. Builds a binary SHA-256 Merkle tree over payout leaves
+4. Writes a `settlement_batch` with status `PENDING` and the Merkle root
+
+### ZK_PROVEN
+
+The SP1 prover runs the Carnot ZK circuit. Verifies 28 constraints (A1–F3): OHLC integrity, Pyth oracle cross-validation (max 2% deviation), win/loss correctness, pool conservation, Merkle root. On success, outputs a Groth16 proof. Batch transitions to `ZK_PROVEN`.
+
+### ON_CHAIN
+
+The keeper submits `verify_and_settle` to `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. On-chain Groth16 verification runs. If valid:
+- `batch_receipt` PDA created with the Merkle root
+- Nullifier PDA stamped (prevents replay)
+- Pool balance updated
+
+Keeper earns **0.25%** of `|net_payout|`.
+
+### CLAIMED
+
+Winner calls `distribute_winnings` with a Merkle inclusion proof:
+1. `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)` — leaf recomputed
+2. Inclusion proof verified against stored root
+3. Nullifier checked (prevents double-claim)
+4. USDT transferred from vault
+
+Unclaimed winnings remain in the vault indefinitely — they don't expire.
+
+---
+
+## Tick Evaluation Loop
+
+```
+every 100ms:
+  for each PENDING order:
+    if now >= window_end:
+      candle = last OHLC close with ts <= window_end
+      if candle.close ∈ [lowerPrice, upperPrice):
+        mark WIN
+      else:
+        mark LOSS
+```
+
+Outcomes are written within one tick (≤ 100 ms) of window close. The OHLC close rule is immune to intra-bar price manipulation — only where the market settled after the window matters.
+
+
+================================================================================
+# Diagram Gallery
+URL: https://carnot.finance/documentation/diagram/overview
+================================================================================
+import {
+  DocsFiveLayerStackDiagram,
+  DocsOracleBindingDiagram,
+  DocsProvableFairnessDiagram,
+  DocsSettlementFlowDiagram,
+  DocsSettlementPipelineDiagram,
+  DocsSystemArchitectureDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# Diagram Gallery
+
+Interactive workflow diagrams used throughout the docs — **Web2-speed UX** vs **Web3-grade settlement**, system boundaries, the ZK batch pipeline, quantitative pricing stack, and oracle binding. Each graphic auto-advances through labeled edges; refresh the page to resync animations.
+
+---
+
+## A — Trade-to-Payout Lifecycle
+
+For traders and LPs: stake → 5s window → aggTrade outcome → 1m ZK batch on Solana → Merkle claim.
+
+<DocsSettlementFlowDiagram />
+
+**Also covered in:** [How It Works](/documentation/overview/how-it-works)
+
+---
+
+## B — Provable Fairness (vs Centralized)
+
+Black-box operator settlement vs Binance + Pyth cross-check locked by the SP1 circuit.
+
+<DocsProvableFairnessDiagram />
+
+**Also covered in:** [Fairness Overview](/documentation/fairness/overview)
+
+---
+
+## C — High-Level System Architecture
+
+React SPA, NestJS + Socket.IO, databases, Kafka, worker & keeper, SP1, and `carnot_engine` on Solana.
+
+<DocsSystemArchitectureDiagram />
+
+**Also covered in:** [Architecture](/documentation/overview/architecture), [Backend Architecture](/documentation/backend/architecture)
+
+---
+
+## D — ZK Settlement Pipeline (Batch State Machine)
+
+`PENDING` assembly → `ZK_PROVING` in SP1 → `ON_CHAIN` via `verify_and_settle`, with the 20-field public output preimage.
+
+<DocsSettlementPipelineDiagram />
+
+**Also covered in:** [ZK Settlement Overview](/documentation/zk-settlement/overview)
+
+---
+
+## E — Five-Layer Quantitative Pricing Stack
+
+EGARCH → Hawkes / Sobol jump-diffusion → Kou barrier → Avellaneda–Stoikov + VPIN → EVT CVaR → signed grid cell.
+
+<DocsFiveLayerStackDiagram />
+
+**Also covered in:** [The Complete Model](/documentation/fairness/complete-model)
+
+---
+
+## F — Cryptographic Oracle Binding
+
+1-minute batch window, three Pyth checkpoints, circuit constraint **|OHLC close − Pyth| ≤ 2%** (200 bps).
+
+<DocsOracleBindingDiagram />
+
+**Also covered in:** [Price Feed & Oracle Binding](/documentation/fairness/price-feed), [Circuit Constraints](/documentation/zk-settlement/circuit-constraints)
+
+
+================================================================================
+# The Complete Model — Vision
+URL: https://carnot.finance/documentation/fairness/complete-model
+================================================================================
+import {
+  DocsBarrierCorrectionDiagram,
+  DocsFiveLayerStackDiagram,
+  DocsPricingEngineDiagram,
+  DocsPricingPipelineDiagram,
+  DocsQuoterDiagram,
+  DocsRiskManagementDiagram,
+  DocsVolatilityEngineDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# The Complete Model — Vision
+
+The current deployment is a working proof of concept with a pre-calibrated pricing model. The full production system integrates five mathematical layers that produce a self-regulating market where pool edge and solvency are maintained dynamically.
+
+## End-to-End Pricing Pipeline
+
+<DocsPricingPipelineDiagram />
+
+**Input →** Binance Futures `aggTrade` stream (real-time tick events: price, size, trade direction, timestamp).
+
+**Output →** `fortressSpreadBps[dx][dy]` — a signed cell grid with one spread value per `(dx, dy)` price-band cell, re-emitted every 250 ms directly to the on-chain quoter (Carnot Solana program). This is what the smart contract reads to set payout multipliers for each active price band.
+
+| Stage | What it produces | Consumed by |
+|-------|-----------------|-------------|
+| L1 · Volatility Engine | `σ_t` (EGARCH conditional vol), `λ_t` (Hawkes jump intensity), VPIN score | L2, L3, L4 |
+| L2 · Reward Surface | `fair_rate` — vol-adjusted polynomial payout rate | L3 |
+| L3 · Kou Barrier | Barrier-touch corrected rate (near-barrier cells tightened, far-barrier cells loosened) | L4 Clamp |
+| L4 · AS Quoter | `fortressSpreadBps` per cell, clamped `[60, 350]` | On-chain grid / output |
+| L5 · CVaR Control | Budget flag → inventory premium feedback into L4 | L4 Inv Premium |
+
+**Feedback loops:**
+- L5 → L4: CVaR budget flag widens inventory premium, tightening spreads to cut pool exposure.
+- L4 → Feed (dashed): each emitted grid closes the 250 ms cycle and the next tick batch arrives immediately.
+
+---
+
+## Five-Layer Architecture
+
+End-to-end stack from volatility through risk — each layer below is expanded in its own subsection.
+
+<DocsFiveLayerStackDiagram />
+
+**Layer 1 — Volatility Engine (EGARCH(1,1) + Hawkes)**
+
+EGARCH(1,1) is an asymmetric volatility model that captures the leverage effect — negative price shocks produce larger volatility spikes than equivalent positive moves:
+
+$$\log \sigma^2_t = \omega + \beta \log \sigma^2_{t-1} + \alpha \left|\frac{\epsilon_{t-1}}{\sigma_{t-1}}\right| + \gamma \frac{\epsilon_{t-1}}{\sigma_{t-1}}$$
+
+$\gamma < 0$ encodes the asymmetry. Without it, vol is symmetric around zero returns — which empirically understates post-drawdown risk.
+
+Hawkes process tracks volatility clustering:
+$$\lambda(t) = \mu + \sum_{t_i < t} \alpha \cdot e^{-\beta(t - t_i)}$$
+
+The Hawkes intensity $\lambda_t$ flows directly into Layer 2 as jump intensity — vol engine and pricer are structurally consistent by construction.
+
+<DocsVolatilityEngineDiagram />
+
+**Layer 2 — Hawkes-Driven Jump-Diffusion Pricing (Sobol QMC)**
+
+Prices each cell via a jump-diffusion process where jump intensity is fed directly from Layer 1:
+
+$$dS_t = \mu S_t \, dt + \sigma_t S_t \, dW_t + J_t \, dN_t(\lambda_t)$$
+
+Path simulation uses **Quasi-Monte Carlo Sobol sequences** instead of pseudo-random draws. Sobol sequences are low-discrepancy — they fill the state space more uniformly, giving 10–30× variance reduction in $P_{\text{true}}$ estimates for the same sample count.
+
+Fair multiplier = $1 / P_{\text{true}}$ where $P_{\text{true}}$ = fraction of paths with $S_T \in [L, U)$. Runs every 250 ms as $\sigma_t$ and $\lambda_t$ change.
+
+<DocsPricingEngineDiagram />
+
+**Layer 3 — Kou Jump-Diffusion Barrier Extension**
+
+For near-barrier cells, the Kou double-exponential jump model gives a closed-form barrier-touch probability:
+
+$$P_{\text{touch}} = \underbrace{e^{-2(x-b)(y-b)/\sigma^2 T}}_{\text{diffusion term}} + \underbrace{\Delta_{\text{Kou}}(\lambda,\, p,\, \eta_1,\, \eta_2,\, T)}_{\text{jump correction}}$$
+
+When $\lambda \approx 0$, $\Delta_{\text{Kou}} \to 0$ and the formula collapses to the standard Brownian Bridge. Applied in real-time to near-barrier cells where plain diffusion underestimates touch probability.
+
+<DocsBarrierCorrectionDiagram />
+
+**Layer 4 — Avellaneda-Stoikov Quoter + VPIN Gate**
+
+Uses the Avellaneda-Stoikov stochastic control solution. Closed-form reservation price (fair mid adjusted for inventory risk):
+
+$$r = s - q \cdot \gamma \cdot \sigma^2 \cdot (T - t)$$
+
+Optimal half-spread:
+
+$$\delta = \gamma \sigma^2 (T - t) + \frac{2}{\gamma} \ln\!\left(1 + \frac{\gamma}{\kappa}\right)$$
+
+**VPIN gate:** Volume-Synchronized Probability of Informed Trading. If VPIN exceeds a calibrated threshold, the pool is in an adverse selection regime. The quoter skews multipliers further against the toxic flow direction. VPIN leads realized vol — it reacts to directional order flow imbalance before the vol spike materializes.
+
+<DocsQuoterDiagram />
+
+**Layer 5 — EVT-Calibrated CVaR (Generalized Pareto Distribution)**
+
+Uses Extreme Value Theory to fit the tail of pool loss distributions directly — accurate in extreme regimes where scenario counts are inherently low.
+
+Peaks-over-Threshold: fit a **Generalized Pareto Distribution** to pool loss simulations exceeding threshold $u$:
+
+$$F_u(x) = 1 - \left(1 + \frac{\xi x}{\beta}\right)^{-1/\xi}$$
+
+Closed-form CVaR from the GPD fit:
+
+$$\text{CVaR}_{0.95} = \frac{\text{VaR}_{0.95} + \beta - \xi u}{1 - \xi}$$
+
+If $\text{CVaR}_{0.95}$ exceeds the pool's risk budget: auto-reduce `MAX_UTILIZATION_BPS`, tighten `MAX_SINGLE_BET_EXPOSURE_BPS`. No manual admin intervention required.
+
+<DocsRiskManagementDiagram />
+
+## POC vs Full System
+
+| Component | Proof of Concept | Full System |
+|-----------|-----------------|-------------|
+| Volatility estimate | Hardcoded (0.45) | Live EGARCH(1,1) + Hawkes at every tick |
+| Pricing engine | Pre-fitted parametric model | Jump-diffusion + Sobol QMC every 250 ms |
+| Barrier correction | Static (offline calibration) | Kou extension (real-time, near-barrier cells) |
+| Quoter | Fixed NORMAL regime, static spread | Avellaneda-Stoikov + VPIN adverse selection gate |
+| CVaR / pool management | Static constants | EVT-calibrated CVaR with GPD tail fit |
+| ZK settlement | **Live** | Same |
+| Oracle binding (Pyth) | **Live** | Same |
+| On-chain solvency invariant | **Live** | Same |
+
+The ZK settlement layer, oracle binding, and on-chain solvency invariants are fully live and production-grade today.
+
+
+================================================================================
+# Fairness & Market Design
+URL: https://carnot.finance/documentation/fairness/overview
+================================================================================
+import { DocsProvableFairnessDiagram } from "../../components/WorkflowEmbeds";
+
+# Fairness & Market Design
+
+Carnot's "provably fair" guarantee is a specific technical claim: every outcome can be independently verified against public on-chain data without trusting the operator at any stage.
+
+<DocsProvableFairnessDiagram />
+
+## Three Pillars
+
+### 1 — Transparent Pricing
+
+Every cell in the price grid carries a `gridSignature` (HMAC-SHA256 over all cell fields — market, window, band, reward rate). It's computed **before the window opens**, so the reward rate is committed before any user bets. The ZK circuit verifies each order's reward rate against the committed cell. Anyone with the published backend key can verify the signature independently.
+
+### 2 — Oracle Binding
+
+Internal OHLC price data is cross-validated against the **Pyth on-chain oracle** at 3 checkpoints per batch (window start, midpoint, end). The ZK circuit enforces each checkpoint is within **200 bps (2%)** of the nearest OHLC close. An operator can't fabricate OHLC data that diverges materially from the public Pyth feed — any attempt fails proof generation.
+
+### 3 — ZK Settlement
+
+The SP1-based ZK circuit verifies correctness of every 1-minute batch in a single Groth16 proof (~200,000 compute units on Solana). The 28 constraints (A1–F3) ensure: correct win/loss per settlement candle, correct payouts per committed multiplier, correct pool conservation, correct Merkle root, unique batch nullifier, and valid Pyth cross-validation.
+
+A batch that passes on-chain verification has been mathematically proven correct. There's no way to post a valid proof for an incorrectly settled batch.
+
+---
+
+> **Note on current deployment:** Fairness pillars 1 and 3 apply fully. The full five-layer pricing model (live Monte Carlo, EWMA+Hawkes volatility, CVaR-gated pool management) is under development. The live system uses pre-calibrated fixed coefficients — see [The Complete Model](/documentation/fairness/complete-model).
+
+---
+
+**In this section:**
+- [Price Feed & Oracle Binding](/documentation/fairness/price-feed)
+- [Reward Rate Model](/documentation/fairness/pricing-model)
+- [Pool Solvency Model](/documentation/fairness/pool-solvency)
+- [Risk Model](/documentation/fairness/risk-model)
+- [The Complete Model — Vision](/documentation/fairness/complete-model)
+
+
+================================================================================
+# Pool Solvency Model
+URL: https://carnot.finance/documentation/fairness/pool-solvency
+================================================================================
+# Pool Solvency Model
+
+The LP pool is the counterparty for every bet. These invariants keep it solvent.
+
+## Pool Conservation Identity (ZK-Enforced)
+
+At every settlement batch, the pool balance changes by an amount verified by constraint D1:
+
+When `net_payout ≥ 0` (pool pays out):
+$$\text{pool\_after} = \text{pool\_before} - \text{net\_payout} - \text{keeper\_fee}$$
+
+When `net_payout < 0` (pool gains):
+$$\text{pool\_after} = \text{pool\_before} + |\text{net\_payout}| - \text{keeper\_fee} - \text{protocol\_fee}$$
+
+No valid proof can be posted for a batch with an incorrect pool update.
+
+## Maximum Liability
+
+At any moment, the pool's worst-case exposure:
+
+$$\text{max\_liability} = \sum_{i \in \text{open}} \frac{\text{stake}_i \times \text{multiplier}_i}{10{,}000}$$
+
+The pool must be able to cover this scenario to guarantee winners can always be paid.
+
+## Hard Solvency Invariants
+
+Checked on-chain at order placement:
+
+$$\text{pool\_balance} \ge \text{current\_liability}$$
+
+Any order that would cause `current_liability > pool_balance` is rejected — no bypass possible.
+
+## Risk Guardrails
+
+| Guardrail | Value | Constraint |
+|-----------|-------|------------|
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | Pool must be ≥ 1.5× liability — new orders paused below this |
+| `MAX_UTILIZATION_BPS` | 7,000 | Max 70% of pool at risk at any time |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | Single bet max payout ≤ 2% of pool |
+
+These work together: the single-bet cap prevents any one bet from creating outsized exposure; the utilization cap prevents the aggregate from pushing close to the solvency floor; the solvency ratio keeps a meaningful buffer above the 1:1 floor.
+
+## On-Chain Proof of Reserve
+
+A `SolvencyReported` event is emitted at each settlement batch close:
+
+```
+SolvencyReported {
+  epochId, poolBalance, totalLiability,
+  utilizationBps, maxSingleBetExposure
+}
+```
+
+Anyone can index these events to track pool health over time and verify `utilizationBps` stayed below 7,000 at every epoch.
+
+## LP Mechanics
+
+LPs deposit USDT in exchange for pool shares. They earn a pro-rata share of the protocol fee (when the pool gains) and bear drawdown risk from winning bettors. The `MIN_SOLVENCY_RATIO` invariant throttles new orders before the pool approaches insolvency, giving LPs time to exit if needed.
+
+
+================================================================================
+# Price Feed & Oracle Binding
+URL: https://carnot.finance/documentation/fairness/price-feed
+================================================================================
+import { DocsOracleBindingDiagram } from "../../components/WorkflowEmbeds";
+
+# Price Feed & Oracle Binding
+
+Two independent price sources cross-validate each other, making price manipulation economically infeasible.
+
+<DocsOracleBindingDiagram />
+
+## Layer 1 — Binance Futures aggTrade
+
+```
+wss://fstream.binance.com/ws/{symbol}@aggTrade
+```
+
+Symbols: `btcusdt`, `ethusdt`, `solusdt`.
+
+The Binance **Futures** market (not spot) is used because it has tighter spreads, higher liquidity, professional/institutional order flow, and higher notional volume — all of which raise the cost of sustained price manipulation.
+
+The aggTrade stream feeds the OHLC builder (5-second candles). The **settlement candle close** — the OHLC close of the last completed candle at or before `window_end` — is the deterministic reference for win/loss outcomes.
+
+## Layer 2 — Pyth Oracle Checkpoints
+
+For each settlement batch, the ZK circuit samples Pyth at **3 checkpoints**:
+
+| Checkpoint | Timing |
+|---|---|
+| 1 | `window_start` |
+| 2 | `(window_start + window_end) / 2` |
+| 3 | `window_end` |
+
+At each checkpoint, the circuit verifies:
+
+$$\text{diff} \times 10{,}000 \le \text{normalizedPythPrice} \times \text{MAX\_DEVIATION\_BPS}$$
+
+where `MAX_DEVIATION_BPS = 200` (2%) and:
+
+$$\text{normalizedPythPrice} = \text{pythPrice} \times 10^{(\text{exponent} + 6)}$$
+
+The `+6` converts from USD to micro-USD to match internal OHLC representation.
+
+Any fabricated OHLC close that deviates more than 2% from the on-chain Pyth price causes proof generation to fail. Because Pyth aggregates from multiple independent sources, an operator can't control both feeds simultaneously.
+
+## Pyth Feed IDs
+
+| Market | Feed ID |
+|--------|---------|
+| BTC/USDT | `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43` |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d` |
+
+These are Pyth price feed account addresses on Solana mainnet. The ZK circuit reads them at proof generation time and includes them as public inputs, making the oracle binding fully auditable.
+
+## Summary
+
+| Layer | Source | Role |
+|-------|--------|------|
+| 1 | Binance Futures aggTrade | Real-time settlement (100 ms tick evaluation, OHLC construction) |
+| 2 | Pyth on-chain oracle | Batch cross-validation (3 checkpoints, max 2% deviation, ZK-enforced) |
+
+
+================================================================================
+# Reward Rate Model
+URL: https://carnot.finance/documentation/fairness/pricing-model
+================================================================================
+import {
+  DocsBarrierCorrectionDiagram,
+  DocsPricingEngineDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# Reward Rate Model
+
+Every cell's reward rate is a function of two normalized variables:
+
+$$\text{rewardRate} = f(dx,\, dy)$$
+
+where:
+- $dx = (t_{\text{cell}} - t_{\text{now}}) / \text{gridXSizeMs}$ — normalized time offset
+- $dy = |p_{\text{cell}} - p_{\text{now}}| / \text{priceCellSize}$ — normalized price distance
+
+## Model Structure
+
+$f$ is a **polynomial-log parametric model**:
+- **Logarithmic terms in $dx$:** cells one step ahead have slightly higher win probability, with the difference growing logarithmically — terms like $\log(dx + m)$ to avoid singularity at $dx = 0$
+- **Polynomial terms in $dy$:** the price-distance to win-probability relationship is approximately polynomial over the finite grid range
+
+Coefficients were calibrated offline. The model shape matches the theoretical fair-value surface from Hawkes-driven jump-diffusion simulation.
+
+## Offline Calibration
+
+**Step 1 — Jump-Diffusion Monte Carlo (Sobol QMC)**
+
+For each grid position $(dx, dy)$, simulated price paths under a Hawkes-driven jump-diffusion process:
+
+$$dS_t = \mu S_t \, dt + \sigma_t S_t \, dW_t + J_t \, dN_t(\lambda_t)$$
+
+where $\lambda_t$ is the Hawkes intensity from the volatility engine. Paths were drawn using **Quasi-Monte Carlo Sobol sequences** — low-discrepancy sequences that fill the state space uniformly and give 10–30× variance reduction over pseudo-random sampling for the same path count.
+
+The fraction of paths with $S_T \in [L, U)$ gave empirical win probability $\hat{P}(dx, dy)$.
+
+<DocsPricingEngineDiagram />
+
+**Step 2 — Kou Barrier Correction**
+
+For near-barrier cells (small $dy$), applied the Kou jump-diffusion barrier extension:
+
+$$P_{\text{touch}} = e^{-2(x-b)(y-b)/\sigma^2 T} + \Delta_{\text{Kou}}(\lambda,\, p,\, \eta_1,\, \eta_2,\, T)$$
+
+$\Delta_{\text{Kou}}$ accounts for the additional barrier-touch probability from jump arrivals. At negligible jump intensity it collapses to the plain diffusion formula — no discontinuity as $\lambda \to 0$.
+
+<DocsBarrierCorrectionDiagram />
+
+**Step 3 — Model Fitting**
+
+Fit $f(dx, dy)$ to minimize MSE between $1/f(dx, dy)$ (implied win probability) and the corrected estimates $\hat{P}(dx, dy)$.
+
+## Platform Edge & Fortress Spread
+
+**Platform edge** (`PLATFORM_EDGE_BPS = 700`, 7%): uniform downward scaling of fair-value multipliers. Instead of $\text{multiplier} = 1/\hat{P}$, the model targets $\approx 1/\hat{P} \times 0.93$. Embedded at commitment time — users can verify the edge by comparing offered multipliers against theoretical $1/\hat{P}$ for any $(dx, dy)$.
+
+**Fortress spread** (`fortressSpreadBps = 150` in NORMAL regime): additional non-uniform tilt based on current VolatilityRegime. Widens to 300 bps (HIGH) or 500 bps (EXTREME). The full production system uses Avellaneda-Stoikov optimal half-spread derived from live $\sigma_t$ and inventory state.
+
+## Signature Commitment
+
+The ZK circuit verifies that each settled order's `rewardRate` matches the `gridSignature`-committed value. The model can't be changed retroactively for a cell already in play.
+
+
+================================================================================
+# Risk Model
+URL: https://carnot.finance/documentation/fairness/risk-model
+================================================================================
+import { DocsRiskManagementDiagram } from "../../components/WorkflowEmbeds";
+
+# Risk Model
+
+## CVaR — Primary Risk Measure
+
+Carnot uses **CVaR** (Conditional Value at Risk / Expected Shortfall) at 95% confidence:
+
+$$\text{CVaR}_{0.95} = E\!\left[\text{Loss} \;\middle|\; \text{Loss} > \text{VaR}_{0.95}\right]$$
+
+CVaR answers: "Given we're in the worst 5% of outcomes, what's the expected loss?" CVaR is more appropriate than VaR for a pool that must stay solvent in tail scenarios — it characterizes tail severity, not just the threshold.
+
+In the current deployment, CVaR constraints are enforced through static guardrails. The full production system computes CVaR dynamically using **EVT-calibrated tail estimation** via Generalized Pareto Distribution.
+
+## EVT-Calibrated CVaR (Full System)
+
+Extreme Value Theory fits the tail of pool loss distributions directly — more accurate in extreme regimes where scenario counts are inherently low.
+
+Peaks-over-Threshold: fit a **Generalized Pareto Distribution** to pool loss outcomes exceeding threshold $u$:
+
+$$F_u(x) = 1 - \left(1 + \frac{\xi x}{\beta}\right)^{-1/\xi}$$
+
+Closed-form CVaR from the GPD fit:
+
+$$\text{CVaR}_{0.95} = \frac{\text{VaR}_{0.95} + \beta - \xi u}{1 - \xi}$$
+
+Shape parameter $\xi$ determines tail heaviness: $\xi > 0$ is heavy-tailed (Pareto-like), $\xi = 0$ is exponential (Gumbel). BTC/SOL loss distributions empirically exhibit $\xi > 0$, which Monte Carlo systematically underestimates. If $\text{CVaR}_{0.95}$ exceeds the pool's risk budget, `MAX_UTILIZATION_BPS` and `MAX_SINGLE_BET_EXPOSURE_BPS` are tightened automatically.
+
+<DocsRiskManagementDiagram />
+
+## VolatilityRegime
+
+The program maintains an on-chain `VolRegime` enum controlling max multipliers and fortress spread:
+
+| Regime | `maxMultiplier` | `fortressSpreadBps` |
+|--------|-----------------|---------------------|
+| LOW | Higher | 100 |
+| NORMAL | 100× | 150 |
+| HIGH | Lower | 300 |
+| EXTREME | Lowest | 500 |
+
+**Current deployment:** NORMAL (maxMultiplier = 100×, fortressSpreadBps = 150 bps).
+
+In higher-volatility regimes, `maxMultiplier` drops (capping per-bet pool exposure) and `fortressSpreadBps` widens (embedding more edge per multiplier to compensate for higher payout variance).
+
+## Risk Parameters
+
+| Parameter | Value | Meaning |
+|-----------|-------|---------|
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | Pool ≥ 1.5× liability |
+| `MAX_UTILIZATION_BPS` | 7,000 | Max 70% of pool at risk |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | Single bet payout ≤ 2% of pool |
+| `CVAR_CONFIDENCE_BPS` | 9,500 | 95% CVaR confidence |
+| `PLATFORM_EDGE_BPS` | 700 | 7% embedded in multipliers |
+| `KEEPER_FEE_BPS` | 25 | 0.25% of `|net_payout|` |
+| `PROTOCOL_FEE_BPS` | 100 | 1% of `|net_payout|` (pool-gains only) |
+
+## POC vs Production
+
+| Feature | Current | Full Production |
+|---------|---------|-----------------|
+| CVaR computation | Static constants | EVT-calibrated GPD tail fit per tick |
+| Volatility input | Fixed (0.45) | EGARCH(1,1) + Hawkes process |
+| Regime transitions | Fixed (NORMAL) | Automatic on $\sigma_t$ thresholds |
+| Utilization cap | Static | Dynamic (tightens when CVaR exceeds budget) |
+
+Current static constants are conservative by design: calibrated against historical BTC/SOL volatility distributions to keep the pool well within CVaR budget under adverse conditions.
+
+
+================================================================================
+# First Integration
+URL: https://carnot.finance/documentation/getting-started/first-integration
+================================================================================
+# First Integration
+
+Full TypeScript script: deposit USDT → fetch grid → place trade → poll outcome → claim winnings.
+
+## Prerequisites
+
+- `@carnot/sdk`, `@solana/web3.js`, `@coral-xyz/anchor` installed
+- Funded Solana wallet keypair (devnet or mainnet)
+- Carnot API JWT (sign a challenge — see [Authentication](/documentation/api/authentication))
+
+---
+
+## Step 1 — Set Up Connection
+
+```typescript
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
+import {
+  CARNOT_IDL, CARNOT_PROGRAM_ID,
+  findCarnotTraderAccountPda, findCarnotVaultPda,
+  findCarnotNullifierPda, findCarnotBatchReceiptPda,
+} from '@carnot/sdk';
+import fs from 'fs';
+
+const wallet = Keypair.fromSecretKey(
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.WALLET_KEYPAIR_PATH!, 'utf-8')))
+);
+const connection = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');
+const provider = new AnchorProvider(connection, {
+  publicKey: wallet.publicKey,
+  signTransaction: async (tx) => { tx.sign(wallet); return tx; },
+  signAllTransactions: async (txs) => txs.map(tx => { tx.sign(wallet); return tx; }),
+}, { commitment: 'confirmed' });
+
+const programId = new PublicKey(CARNOT_PROGRAM_ID);
+const program = new Program(CARNOT_IDL, programId, provider);
+const API_BASE = process.env.CARNOT_API_URL!;
+```
+
+---
+
+## Step 2 — Derive Trader PDA
+
+```typescript
+const [traderPda] = findCarnotTraderAccountPda(wallet.publicKey, programId);
+console.log('Trader PDA:', traderPda.toBase58());
+```
+
+The PDA uses seed `["trader", wallet.publicKey.toBytes()]`. Created automatically on first deposit.
+
+---
+
+## Step 3 — Deposit USDT
+
+```typescript
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { CARNOT_CONSTANTS } from '@carnot/sdk';
+
+const USDT_MINT = new PublicKey(CARNOT_CONSTANTS.USDT_MINT_ADDRESS);
+const [vaultPda] = findCarnotVaultPda(programId);
+const userUsdtAta = await getAssociatedTokenAddress(USDT_MINT, wallet.publicKey);
+const vaultUsdtAta = await getAssociatedTokenAddress(USDT_MINT, vaultPda, true);
+
+const depositTx = await program.methods
+  .traderDeposit(new BN(100 * 1_000_000))  // 100 USDT in micro-USDT
+  .accounts({
+    trader: wallet.publicKey, traderAccount: traderPda,
+    vault: vaultPda, userTokenAccount: userUsdtAta,
+    vaultTokenAccount: vaultUsdtAta, tokenMint: USDT_MINT,
+  })
+  .signers([wallet]).rpc();
+
+console.log('Deposit tx:', depositTx);
+```
+
+---
+
+## Step 4 — Fetch Grid and Place Trade
+
+```typescript
+const JWT = process.env.CARNOT_JWT!;
+
+const grid = await fetch(`${API_BASE}/api/grid?market=BTC_USDT`, {
+  headers: { Authorization: `Bearer ${JWT}` },
+}).then(r => r.json());
+
+const cell = grid.cells[0];  // pick by strategy in production
+
+const order = await fetch(`${API_BASE}/api/orders`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${JWT}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ market: 'BTC_USDT', cell, stake_usdt: 10, direction: 'IN' }),
+}).then(r => r.json());
+
+console.log('Order:', order.id, '— status:', order.status);
+```
+
+The `cell` object must come directly from `gridUpdate` — don't modify any field or the HMAC check fails. The `gridSignature` commits the reward rate before the window opened, ruling out retroactive payout manipulation.
+
+---
+
+## Step 5 — Poll for Settlement
+
+```typescript
+const waitForSettlement = async (orderId: string): Promise<any> => {
+  while (true) {
+    const orders = await fetch(`${API_BASE}/api/orders/user`, {
+      headers: { Authorization: `Bearer ${JWT}` },
+    }).then(r => r.json());
+    const settled = orders.find((o: any) => o.id === orderId && o.status === 'SETTLED');
+    if (settled) return settled;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+};
+
+const settled = await waitForSettlement(order.id);
+console.log('Outcome:', settled.outcome, '— Payout:', settled.payout_usdt, 'USDT');
+```
+
+---
+
+## Step 6 — Claim Winnings After Batch Settlement
+
+Payouts are processed in 1-minute batches. After the keeper submits the Groth16 proof on-chain:
+
+```typescript
+const getMerkleProof = async (orderId: string): Promise<any> => {
+  while (true) {
+    const res = await fetch(`${API_BASE}/api/orders/${orderId}/merkle-proof`, {
+      headers: { Authorization: `Bearer ${JWT}` },
+    });
+    if (res.ok) return res.json();
+    await new Promise(r => setTimeout(r, 30_000));
+  }
+};
+
+const proofData = await getMerkleProof(order.id);
+// proofData: { batch_id, merkle_root, proof_nodes: string[], leaf_index, payout_usdt }
+
+const batchId = new BN(proofData.batch_id);
+const [batchReceiptPda] = findCarnotBatchReceiptPda(batchId, programId);
+const [nullifierPda] = findCarnotNullifierPda(wallet.publicKey, batchId, programId);
+
+const claimTx = await program.methods
+  .distributeWinnings(
+    batchId,
+    new BN(proofData.payout_usdt * 1_000_000),
+    proofData.proof_nodes.map((n: string) => Buffer.from(n, 'hex'))
+  )
+  .accounts({
+    claimer: wallet.publicKey, traderAccount: traderPda,
+    batchReceipt: batchReceiptPda, nullifier: nullifierPda,
+    vault: vaultPda, vaultTokenAccount: vaultUsdtAta,
+    claimerTokenAccount: userUsdtAta, tokenMint: USDT_MINT,
+  })
+  .signers([wallet]).rpc();
+
+console.log('Claim tx:', claimTx);
+```
+
+`distribute_winnings`:
+1. Verifies Merkle proof against `batch_receipt.merkle_root`
+2. Checks nullifier PDA doesn't exist (replay protection)
+3. Transfers USDT from vault to your token account
+4. Creates nullifier PDA permanently
+
+You don't need to run the prover — the keeper handles batch assembly, ZK proving, and on-chain submission automatically.
+
+
+================================================================================
+# Installation
+URL: https://carnot.finance/documentation/getting-started/installation
+================================================================================
+# Installation
+
+## Install the SDK
+
+```bash
+npm install @carnot/sdk
+# or: yarn add @carnot/sdk  /  pnpm add @carnot/sdk
+```
+
+Peer dependencies:
+
+```bash
+npm install @solana/web3.js @coral-xyz/anchor
+```
+
+---
+
+## What the SDK Exports
+
+```typescript
+import {
+  // PDA Derivation
+  findCarnotTraderAccountPda,
+  findCarnotBatchReceiptPda,
+  findCarnotNullifierPda,
+  findCarnotVaultPda,
+
+  // Types
+  TraderAccount, BatchReceipt, OrderStatus, VolatilityRegime,
+  SettlementCell, MarketConfig,
+
+  // Program IDL (for use with @coral-xyz/anchor)
+  CARNOT_IDL,
+
+  // Constants
+  CARNOT_PROGRAM_ID,
+  CARNOT_CONSTANTS,
+  PYTH_FEED_IDS,
+} from '@carnot/sdk';
+```
+
+---
+
+## Protocol Constants
+
+| Constant | Value |
+|----------|-------|
+| `CARNOT_PROGRAM_ID` | `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS` |
+| `KEEPER_FEE_BPS` | `25` |
+| `PROTOCOL_FEE_BPS` | `100` |
+| `MIN_SOLVENCY_RATIO_BPS` | `15000` |
+| `MAX_UTILIZATION_BPS` | `7000` |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | `200` |
+| `CVAR_CONFIDENCE_BPS` | `9500` |
+| `PYTH_FEED_IDS.BTC_USDT` | `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43` |
+| `PYTH_FEED_IDS.JUP_USDT` | Coming Soon |
+| `PYTH_FEED_IDS.SOL_USDT` | `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d` |
+
+---
+
+## Environment Variables
+
+```bash
+NETWORK=devnet                              # or mainnet
+SOLANA_RPC_URL=https://api.devnet.solana.com
+CARNOT_API_URL=https://api.devnet.carnot.fi
+WALLET_KEYPAIR_PATH=~/.config/solana/id.json
+```
+
+---
+
+## Basic Usage
+
+```typescript
+import { Connection, PublicKey } from '@solana/web3.js';
+import { findCarnotTraderAccountPda, findCarnotVaultPda, CARNOT_PROGRAM_ID } from '@carnot/sdk';
+
+const connection = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');
+const programId = new PublicKey(CARNOT_PROGRAM_ID);
+const walletPublicKey = new PublicKey('YOUR_WALLET_ADDRESS');
+
+const [traderPda] = findCarnotTraderAccountPda(walletPublicKey, programId);
+const [vaultPda] = findCarnotVaultPda(programId);
+
+console.log('Trader PDA:', traderPda.toBase58());
+console.log('Vault PDA:', vaultPda.toBase58());
+```
+
+---
+
+**Next:** [First Integration](/documentation/getting-started/first-integration) — full deposit → trade → claim script
+
+
+================================================================================
+# Quickstart
+URL: https://carnot.finance/documentation/getting-started/quickstart
+================================================================================
+# Quickstart
+
+Get from zero to your first settled trade in under 5 minutes.
+
+## Prerequisites
+
+- Node.js 18+
+- Solana wallet (Phantom or Backpack)
+- USDT (SPL) on the target network
+- Carnot API endpoint (devnet or mainnet)
+
+---
+
+## Step 1 — Install the SDK
+
+```bash
+npm install @carnot/sdk
+```
+
+The SDK provides PDA derivation helpers, TypeScript types, the program IDL, and protocol constants.
+
+---
+
+## Step 2 — Connect Wallet and Deposit USDT
+
+Open the Carnot app, connect your wallet, and navigate to **Account → Deposit**. This calls `trader_deposit` on `carnot_engine` and increases your on-chain vault balance in a `trader_account` PDA unique to your wallet. Withdraw anytime via **Account → Withdraw**.
+
+---
+
+## Step 3 — Fetch the Price Grid
+
+```bash
+GET /api/grid?market=BTC_USDT
+```
+
+Each cell in the response includes:
+- `band`: `{ lower, upper }` in USDT
+- `window_start` / `window_end`: Unix timestamps (5-second span)
+- `reward_rate_bps`: payout multiplier in basis points (e.g., `15000` = 1.5×)
+- `signature`: HMAC-SHA256 committing all fields before the window opened
+
+---
+
+## Step 4 — Place a Trade
+
+```bash
+POST /api/orders
+{
+  "market": "BTC_USDT",
+  "cell": { ...cell data including signature... },
+  "stake_usdt": 10,
+  "direction": "IN"
+}
+```
+
+You're predicting the settlement candle close falls **inside** the band when the 5-second window ends. The backend validates the cell signature, reserves your stake, and creates an order with status `PENDING`.
+
+---
+
+## Step 5 — Watch the Outcome
+
+At `window_end`, the backend evaluates the 5-second OHLC candle's **close** against the band:
+
+- Close **inside** $[\text{lower}, \text{upper}]$ → **WIN** — receive `stake × reward_rate_bps / 10000`
+- Close **outside** → **LOSS** — stake goes to the vault
+
+Poll `GET /api/orders/user` or watch the `orderResult` Socket.IO event.
+
+---
+
+## Step 6 — Claim Winnings After Batch Settlement
+
+Outcomes are real-time; payouts are processed in **1-minute batches** (the keeper aggregates each minute and publishes on-chain). Once the keeper generates a ZK proof and the `batch_receipt` PDA is on-chain:
+
+1. Fetch your Merkle proof from the backend
+2. Submit `distribute_winnings` with the proof
+3. USDT transfers from vault to your wallet
+
+The app handles this via the **Claim Winnings** UI.
+
+---
+
+**Next:** [Installation](/documentation/getting-started/installation) · [First Integration](/documentation/getting-started/first-integration) · [How It Works](/documentation/overview/how-it-works)
+
+
+================================================================================
+# Architecture
+URL: https://carnot.finance/documentation/overview/architecture
+================================================================================
+import { DocsSystemArchitectureDiagram } from "../../components/WorkflowEmbeds";
+
+# Architecture
+
+<DocsSystemArchitectureDiagram />
+
+---
+
+## Packages
+
+| Package | Role | Open Source |
+|---------|------|-------------|
+| `carnot-frontend` | Vite/React SPA — price grid UI, wallet integration, trade placement, docs | No |
+| `carnot-backend` | NestJS API — order management, real-time price processing, batch worker, settlement coordination | No |
+| `carnot-keeper` | Node.js bot — polls pending batches, invokes SP1 prover, submits proofs to Solana | No |
+| `carnot-sdk` | TypeScript library — PDA derivation, IDL types, protocol constants, Pyth feed IDs | **Yes** |
+| `carnot-programs` | Anchor/Rust Solana program — vault, deposits, ZK settlement verification, payout distribution | **Yes** |
+| `carnot-circuit` | SP1 zkVM Rust circuit — all 28 settlement constraints, Groth16 proving | **Yes** |
+
+---
+
+## Auth Model
+
+| Caller | Endpoint Group | Auth Method |
+|--------|---------------|-------------|
+| Frontend | `/api/*` (user-facing) | JWT Bearer (EVM wallet signature challenge) |
+| Keeper | `/v1/settlement/*` | `X-API-KEY` header |
+| Keeper | `/internal/batch/*` | Bearer token |
+
+Users can't impersonate the keeper, and the keeper can't act on behalf of users. Internal batch endpoints (raw order data) are not exposed on the public API surface.
+
+---
+
+## Infrastructure
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| PostgreSQL 15 | 5437 | Orders, batches, accounts |
+| Redis 7.x | 6381 | Rate limiting, session data |
+| Kafka 7.3.2 | 39092 | Price tick fan-out to ClickHouse |
+| ClickHouse 23.8 | 8124 | OHLC candle storage for batch assembly |
+| MinIO | 32126–32127 | ZK proof artifacts, batch data archives |
+
+---
+
+**Next:** [Glossary](/documentation/overview/glossary)
+
+
+================================================================================
+# Glossary
+URL: https://carnot.finance/documentation/overview/glossary
+================================================================================
+# Glossary
+
+| Term | Definition |
+|------|------------|
+| **Band** | A price range $[\text{lower\_bound}, \text{upper\_bound})$ for a given market. A trade wins if the settlement candle close lands inside the band. |
+| **Batch** | A 1-minute window of settled orders assembled by the Worker and sent to the keeper for ZK proof generation. |
+| **Batch Receipt** | On-chain PDA written by `verify_and_settle` after successful proof verification. Contains the Merkle root, batch ID, and settlement timestamp. |
+| **Cell** | One element in the price grid: a signed 5-second trading window paired with a specific price band and a `rewardRate` multiplier. |
+| **CVaR** | Conditional Value at Risk — a risk metric bounding expected loss in the tail of the payout distribution, used to keep the vault solvent under adverse scenarios. |
+| **EWMA** | Exponentially Weighted Moving Average — used to estimate short-term volatility feeding into `VolatilityRegime` classification. |
+| **Fortress Spread** | A controlled house edge built into band pricing via `fortressSpreadBps`. Widens the effective band required for a win, creating a spread between fair value and offered payouts. |
+| **Grid** | The 10×9 array of cells emitted every 250 ms per market. Each cell is a tradeable band + window combination. |
+| **Groth16** | The pairing-based SNARK used for on-chain settlement verification. Constant 256-byte proof size, verified in one Solana instruction via native BN254 precompile. |
+| **Keeper** | Off-chain Node.js bot that polls for pending settlement batches, invokes the SP1 prover, and submits `verify_and_settle` to Solana. |
+| **Market** | A trading pair (e.g., BTC/USDT) with its own price feed, band configuration, and VolatilityRegime. |
+| **Merkle Root** | SHA-256 tree root over all winner payouts in a batch. Stored on-chain in `batch_receipt`; winners prove inclusion to claim. |
+| **Multiplier** | Payout ratio in basis points (e.g., 15000 bps = 1.5×). Same as `rewardRate`. |
+| **Nullifier** | One-time PDA created on-chain at settlement or claim. Its existence permanently prevents replay of that batch or claim. |
+| **OHLC** | Open/High/Low/Close price candle. Carnot constructs 5-second OHLC candles from Binance Futures aggTrade; the **Close** price determines win/loss. |
+| **PDA** | Program-Derived Account — a deterministic Solana account address with no private key, owned by the program. |
+| **Reward Rate** | Payout multiplier offered on a cell, in basis points. Signed by the backend before window opens. Same as *Multiplier*. |
+| **Settlement Candle** | The 5-second OHLC candle whose **Close** determines WIN or LOSS. Constructed from Binance Futures aggTrade and cross-validated against Pyth. |
+| **SP1 zkVM** | Succinct Labs' RISC-V-based ZK virtual machine. Carnot's settlement circuit is written in Rust, compiled to SP1, which generates the Groth16 proof. |
+| **USDT** | USD Tether (SPL token on Solana) — the only denomination for stakes, payouts, and vault balances. |
+| **Vault** | On-chain USDT pool managed by `carnot_engine`. Funds only move via verified `distribute_winnings` instructions. |
+| **VolatilityRegime** | Classification (`LOW` / `NORMAL` / `HIGH` / `EXTREME`) derived from EWMA volatility. Controls `maxMultiplier` and `fortressSpreadBps` per market. |
+| **Window** | The 5-second time interval for a cell, defined by `window_start` and `window_end` Unix timestamps. |
+
+
+================================================================================
+# How It Works
+URL: https://carnot.finance/documentation/overview/how-it-works
+================================================================================
+import { DocsSettlementFlowDiagram } from "../../components/WorkflowEmbeds";
+
+# How It Works
+
+<DocsSettlementFlowDiagram />
+
+---
+
+## Phase 1 — Trade Placement
+
+Every 250 ms the backend emits a signed price grid via Socket.IO (`gridUpdate`). Each cell carries an HMAC-SHA256 `gridSignature` committing the band, window timestamps, market, and reward rate before the window opens.
+
+The user picks a cell and posts `POST /api/orders` with the cell data. The backend validates: HMAC matches, window not expired, sufficient vault balance. On success, order is `PENDING`.
+
+---
+
+## Phase 2 — Real-Time Settlement
+
+The backend maintains a persistent WebSocket to Binance Futures (`fstream.binance.com/ws/{symbol}@aggTrade`) and builds 5-second OHLC candles from the tick stream.
+
+Every 100 ms, the tick evaluator scans all `PENDING` orders. When `window_end` is reached, it checks the settlement candle close:
+
+- Close **inside** $[\text{lowerPrice}, \text{upperPrice})$ → **WIN**
+- Close **outside** → **LOSS**
+
+Order is updated to `SETTLED` immediately. No on-chain transaction yet — the outcome is committed to Solana in the next phase.
+
+---
+
+## Phase 3 — ZK Proof & On-Chain Settlement
+
+Every minute, the Worker queries all `SETTLED` orders in the elapsed window, builds a binary SHA-256 Merkle tree over winner payouts, and writes a `settlement_batch` with status `PENDING`.
+
+The keeper bot aggregates pending batches each minute, feeds each batch to the SP1 prover binary (open-source `carnot-circuit`), and waits for a Groth16 proof. The circuit checks all 28 constraints: OHLC integrity, Pyth oracle cross-validation (3 checkpoints, max 2% deviation), win/loss correctness, pool conservation, and Merkle root.
+
+The keeper calls `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. The on-chain BN254 pairing check runs. If it passes, the program writes a `batch_receipt` PDA containing the Merkle root, and stamps a nullifier PDA to prevent replay.
+
+---
+
+## Phase 4 — Claiming Winnings
+
+Winners call `distribute_winnings` with a Merkle inclusion proof:
+
+1. Program recomputes the leaf: `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)`
+2. Verifies the path against the stored Merkle root
+3. Checks the `claim_receipt` PDA doesn't exist (replay protection)
+4. Transfers USDT from the vault, creates `claim_receipt` PDA
+
+---
+
+## Dual Price Sources
+
+| Source                   | Usage                                                         |
+| ------------------------ | ------------------------------------------------------------- |
+| Binance Futures aggTrade | Real-time tick evaluation, OHLC construction                  |
+| Pyth on-chain oracle     | ZK circuit cross-validation (3 checkpoints, max 2% deviation) |
+
+The ZK circuit enforces that settlement prices stay within 2% of Pyth. Any divergence causes proof generation to fail — the backend can't silently use a manipulated price.
+
+---
+
+**Next:** [Architecture](/documentation/overview/architecture)
+
+
+================================================================================
+# What is Carnot
+URL: https://carnot.finance/documentation/overview/what-is-carnot
+================================================================================
+# What is Carnot
+
+Carnot is a permissionless, ZK-verified prediction market on Solana. You pick a price band, bet on whether the settlement candle closes inside it within a 5-second window, and get your result in under 10 seconds. Every batch of settled orders is committed on-chain as a Groth16 ZK proof — no trusting the operator.
+
+## How Bets Work
+
+The market is a **10×9 grid** of cells emitted every 250 ms per market. Each cell has:
+
+- A price band $[\text{lower}, \text{upper})$ — width is $25 for BTC, and $0.10 for SOL. We will release the same for JUP soon.
+- A 5-second window (`window_start`, `window_end`)
+- A `rewardRate` in basis points (e.g., 15000 bps = 1.5×)
+- A `gridSignature` (HMAC-SHA256) committing the reward rate before the window opens
+
+You win if the settlement candle close falls inside the band. The signature makes retroactive payout manipulation impossible.
+
+## Why ZK Proofs
+
+Without ZK, you'd have to trust the operator for: correct price recording, honest win/loss calculation, and full payouts to winners. Carnot encodes the entire settlement logic in an SP1 zkVM circuit. Every 1-minute batch is proved against 28 constraints and submitted on-chain via `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`, which writes an immutable `batch_receipt` PDA.
+
+## Markets
+
+| Market | Price Feed |
+|--------|------------|
+| BTC/USDT | Binance Futures aggTrade + Pyth |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | Binance Futures aggTrade + Pyth |
+
+## What's Open Source
+
+- **carnot-circuit** — SP1 zkVM Rust circuit, all 28 settlement constraints. Re-run the prover on any batch to verify outcomes.
+- **carnot-programs** — Anchor/Rust Solana program (`carnot_engine`) at `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`.
+- **carnot-sdk** — TypeScript SDK: PDA derivation, IDL types, protocol constants, Pyth feed IDs.
+
+The backend, keeper bot, and frontend are proprietary. On-chain and cryptographic components are fully transparent.
+
+## Pricing Status
+
+The current deployment uses a pre-calibrated, volatility-regime-aware reward rate model. The full production system adds live EGARCH(1,1) + Hawkes volatility estimation, Hawkes-driven jump-diffusion pricing with Sobol QMC path sampling, Kou barrier correction for near-band cells, Avellaneda-Stoikov quoting with a VPIN adverse selection gate, and EVT-calibrated CVaR via Generalized Pareto Distribution for tail risk management.
+
+---
+
+**Next:** [How It Works](/documentation/overview/how-it-works) · [Architecture](/documentation/overview/architecture) · [Quickstart](/documentation/getting-started/quickstart)
+
+
+================================================================================
+# Instructions Reference
+URL: https://carnot.finance/documentation/smart-contracts/instructions
+================================================================================
+# Instructions Reference
+
+All instructions are Anchor-IDL-compatible, callable via the Anchor TypeScript client or any Solana transaction builder.
+
+## Summary
+
+| Instruction | Caller | Description |
+|-------------|--------|-------------|
+| `admin_init` | Admin | Initialize global state — keeper pubkey, fee rates, batch interval |
+| `init_market` | Admin | Register a market with Pyth feed ID and risk parameters |
+| `update_market` | Admin | Update market parameters (regime, fortress spread, max multiplier) |
+| `lp_deposit` | LP | Add USDT liquidity; receive pool shares |
+| `lp_withdraw` | LP | Burn pool shares; receive proportional USDT |
+| `trader_deposit` | User | Deposit USDT collateral into `trader_account` |
+| `trader_withdraw` | User | Withdraw unused USDT from `trader_account` |
+| `place_trade` | User | Record a trade — stake debited immediately from `collateral_balance` |
+| `verify_and_settle` | Keeper | Submit Groth16 proof and atomically settle a batch |
+| `distribute_winnings` | Any | Claim a winning trade's payout via Merkle proof |
+| `rotate_keeper` | Admin | Update `global_state.keeper` without re-deploying |
+| `pause` / `unpause` | Admin | Emergency halt or resume trading and settlement |
+| `withdraw_protocol_fees` | Admin | Extract accumulated protocol fee USDT from vault |
+
+---
+
+## Key Instruction Details
+
+### `admin_init`
+
+Creates `global_state` PDA and vault USDT token account. Called once before any other interaction.
+
+**Parameters:** `keeper` (Pubkey), `protocol_fee_bps` (u16, current: 100), `keeper_fee_bps` (u16, current: 25), `min_batch_interval_secs` (u64)
+
+### `lp_deposit` / `lp_withdraw`
+
+Share minting: $\text{new\_shares} = \dfrac{\text{deposit} \times \text{total\_shares}}{\text{pool\_balance\_before}}$ (first deposit is 1:1)
+
+Withdrawal: $\text{usdt\_out} = \dfrac{\text{shares\_to\_redeem} \times \text{pool\_balance}}{\text{total\_shares}}$ — fails if it would breach minimum solvency margin.
+
+### `place_trade`
+
+Stake is debited from `trader_account.collateral_balance` at submission time. Trade commitment hash `SHA256(trade fields...)` is stored on-chain and verified by ZK constraint A1.
+
+**Parameters:** `market_id` (u64), `batch_id` ([u8;32]), `trade_id` ([u8;32]), `direction` (u8), `price_band_lower` (i64), `price_band_upper` (i64), `stake_usdt` (u64), `multiplier_bps` (u32)
+
+### `verify_and_settle`
+
+Full parameter list (25 fields):
+
+| Parameter | Type |
+|-----------|------|
+| `market_id` | `u64` |
+| `batch_id` | `[u8; 32]` |
+| `proof_a` | `[u8; 64]` |
+| `proof_b` | `[u8; 128]` |
+| `proof_c` | `[u8; 64]` |
+| `proof_nonce` | `u64` |
+| `public_outputs_hash` | `[u8; 32]` |
+| `window_start` | `i64` |
+| `window_end` | `i64` |
+| `pyth_checkpoints_hash` | `[u8; 32]` |
+| `net_payout_usdt` | `i64` |
+| `pool_balance_before` | `u64` |
+| `pool_balance_after` | `u64` |
+| `num_trades` | `u32` |
+| `nullifier_hash` | `[u8; 32]` |
+| `keeper_fee` | `u64` |
+| `current_liability_before` | `u64` |
+| `protocol_fee` | `u64` |
+| `num_winners` | `u32` |
+| `num_losers` | `u32` |
+| `total_winners_payout` | `u64` |
+| `total_losers_stake` | `u64` |
+| `market_regime_id` | `u64` |
+| `payouts_commitment` | `[u8; 32]` |
+| `trades_commitment` | `[u8; 32]` |
+
+### `distribute_winnings`
+
+Permissionless — anyone can call it, but USDT always goes to the trade's original `trader_pubkey`.
+
+Flow:
+1. Recomputes leaf: `SHA256("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout_amount ‖ leaf_index)`
+2. Walks Merkle proof path, checks root equals `batch_receipt.merkle_root`
+3. Checks `claim_receipt` PDA doesn't exist
+4. Creates `claim_receipt`, transfers payout USDT from vault
+
+
+================================================================================
+# Program Overview
+URL: https://carnot.finance/documentation/smart-contracts/program-overview
+================================================================================
+# Program Overview
+
+`carnot_engine` is a Solana program built with Anchor 0.32.0 in Rust. It handles fund custody, ZK proof verification, batch settlement, and payout distribution.
+
+## Program Identity
+
+| Property | Value |
+|----------|-------|
+| Program Name | `carnot_engine` |
+| Program ID | `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS` |
+| Framework | Anchor 0.32.0 |
+| Language | Rust |
+
+**Dependencies:** Pyth SDK (BTC/USD, JUP/USD*, SOL/USD price feeds for oracle validation), SPL Token (USDT is the sole collateral token).
+---
+Note: Compatibility for *JUP/USD* is under active development and will be released soon.
+
+## PDAs
+
+| PDA | Seeds | Key Fields |
+|-----|-------|------------|
+| `global_state` | `["global"]` | `keeper`, `protocol_fee_bps`, `keeper_fee_bps`, `min_batch_interval_secs`, `admin`, `paused` |
+| `vault_state` | `["vault"]` | USDT SPL token account address |
+| `market_state` | `["market", market_id]` | `pyth_feed_id`, `regime_id`, `fortress_spread_bps`, `max_multiplier`, `vol_regime` |
+| `batch_receipt` | `["batch", batch_id]` | `merkle_root`, `window_start`, `window_end`, `settled`, `market_id`, `num_trades`, `num_winners`, `num_losers` |
+| `nullifier` | `["nullifier", nullifier_hash]` | Existence = batch or claim is permanently finalized |
+| `lp_position` | `["lp_position", lp_pubkey]` | `shares`, `deposited_amount` |
+| `trader_account` | `["trader_account", trader_pubkey]` | `collateral_balance` |
+| `claim_receipt` | `["claim_receipt", batch_id, trade_id]` | `claimed = true` — prevents double-claim per trade |
+
+**Notable design points:**
+
+- `vault_state` is the program's token account authority — only program instructions can move funds
+- `batch_receipt.merkle_root` is set to `payouts_commitment` from the ZK proof — this is what `distribute_winnings` verifies against
+- Nullifier PDAs can only be initialized once (Solana runtime enforces this); attempting to re-initialize reverts before any program logic runs
+- `claim_receipt` seeds include both `batch_id` and `trade_id` — each trade can only be claimed once per batch
+
+---
+
+## Access Control
+
+| Level | Instructions |
+|-------|-------------|
+| Admin only | `admin_init`, `init_market`, `update_market`, `rotate_keeper`, `pause`/`unpause`, `withdraw_protocol_fees` |
+| Keeper only | `verify_and_settle` (signer must match `global_state.keeper`) |
+| LP only | `lp_deposit`, `lp_withdraw` |
+| Trader only | `trader_deposit`, `trader_withdraw`, `place_trade` |
+| Permissionless | `distribute_winnings` (requires valid Merkle proof) |
+
+The keeper key can be rotated via `rotate_keeper` without re-deploying the program.
+
+
+================================================================================
+# Settlement Math
+URL: https://carnot.finance/documentation/smart-contracts/settlement-math
+================================================================================
+# Settlement Math
+
+These formulas are verified by ZK constraints (C4, D1, D3, D4) and re-enforced by the Solana program. Live parameters: `keeper_fee_bps = 25`, `protocol_fee_bps = 100`.
+
+## Gross Payout (Per Winner)
+
+$$\text{gross\_payout}_i = \frac{\text{stake}_i \times \text{multiplier\_bps}_i}{10{,}000}$$
+
+`multiplier_bps = 10000` means 1× (return of stake only). `multiplier_bps = 15000` means 1.5×. Bounded to `[10000, market_max_multiplier]` by constraint A4.
+
+## Net Payout (Batch Level)
+
+$$\text{net\_payout} = \sum_{\text{winners}} \text{gross\_payout}_i - \sum_{\text{winners}} \text{stake}_i - \sum_{\text{losers}} \text{stake}_j$$
+
+- `net_payout > 0` — pool pays out to winners on net
+- `net_payout < 0` — pool gains from losers on net
+- `net_payout = 0` — only fees move
+
+## Keeper Fee
+
+Charged on both directions:
+
+$$\text{keeper\_fee} = \frac{|\text{net\_payout}| \times 25}{10{,}000}$$
+
+Constraint D3 verifies this exactly.
+
+## Protocol Fee
+
+Only charged when pool gains (`net_payout < 0`):
+
+$$\text{protocol\_fee} = \begin{cases} \dfrac{|\text{net\_payout}| \times 100}{10{,}000} & \text{if } \text{net\_payout} < 0 \\ 0 & \text{otherwise} \end{cases}$$
+
+Constraint D4 enforces the conditional — a proof with non-zero `protocol_fee` when `net_payout ≥ 0` is invalid.
+
+## Pool Balance Conservation
+
+When `net_payout ≥ 0`:
+$$\text{pool\_after} = \text{pool\_before} - \text{net\_payout} - \text{keeper\_fee}$$
+
+When `net_payout < 0`:
+$$\text{pool\_after} = \text{pool\_before} + |\text{net\_payout}| - \text{keeper\_fee} - \text{protocol\_fee}$$
+
+Constraint D1 verifies this holistically. The program also checks `pool_after ≥ 0` and reverts if it would go negative.
+
+## Example
+
+3 winners (stakes $100, $200, $150; multipliers 1.5×, 2×, 1.2×), 2 losers (stakes $300, $250):
+
+```
+gross_payouts = 150 + 400 + 180 = 730
+winner_stakes = 100 + 200 + 150 = 450
+loser_stakes  = 300 + 250      = 550
+
+net_payout = 730 - 450 - 550 = -270   ← pool gains
+
+keeper_fee   = 270 × 0.0025 = $0.675
+protocol_fee = 270 × 0.01   = $2.70
+
+pool_after = pool_before + 270 - 0.675 - 2.70 = pool_before + $266.625
+```
+
+
+================================================================================
+# Aggregator Circuit
+URL: https://carnot.finance/documentation/zk-settlement/aggregator
+================================================================================
+# Aggregator Circuit
+
+For large batches, running the full settlement circuit over thousands of trades in a single prover invocation would take too long. Carnot solves this with chunked aggregation: split the batch into chunks, prove each chunk in parallel, then combine into a single final proof.
+
+## How It Works
+
+### Phase 1 — Parallel Chunk Proving
+
+The keeper splits the batch's trade list into fixed-size chunks. Each chunk is sent to the SP1 prover independently and simultaneously. Because chunks are independent, total wall-clock time ≈ time for a single chunk (not the sum of all chunks).
+
+Each chunk prover runs the per-trade constraint groups (A — trade validity, C — payout calculation, F — uniqueness) and outputs a partial Groth16 proof plus a partial commitment to its trades and payouts.
+
+### Phase 2 — Aggregator Circuit
+
+Once all chunk proofs are ready, `carnot-circuit/aggregator-program/` runs:
+
+1. **Verifies each partial proof** recursively via BN254 pairing
+2. **Merges partial commitments** into the final `payouts_commitment` Merkle root and `trades_commitment` hash
+3. **Applies batch-level constraints** — OHLC checks (B1–B6), pool conservation (D1), trade count (D6) — where the full trade set is needed
+4. **Outputs a single Groth16 proof** + 32-byte `public_outputs_hash`
+
+## Constant On-Chain Cost
+
+Only the final aggregated proof is submitted to Solana. From the on-chain verifier's perspective, every settlement is identical: a 256-byte Groth16 proof and a 32-byte hash. Verification cost (fixed BN254 pairing operations) is the same whether the batch has 10 or 10,000 trades — gas doesn't grow with batch size.
+
+The aggregator circuit source is fully open-sourced alongside the main circuit in `carnot-circuit/aggregator-program/`.
+
+
+================================================================================
+# Circuit Constraints
+URL: https://carnot.finance/documentation/zk-settlement/circuit-constraints
+================================================================================
+import { DocsOracleBindingDiagram } from "../../components/WorkflowEmbeds";
+
+# Circuit Constraints
+
+The Carnot settlement circuit verifies **28 constraints** across **6 groups** (A–F). Any single failure aborts proof generation — the Solana program will reject the settlement transaction.
+
+Circuit source: `carnot-circuit/` (open source, Rust, runs on SP1 zkVM).
+
+## Oracle cross-check (Group B preview)
+
+<DocsOracleBindingDiagram />
+
+## Constraint Reference
+
+| Group | Constraint | What It Checks | Attack Prevented |
+|-------|-----------|----------------|-----------------|
+| **A — Trade Validity** | A1 | Each trade's SHA-256 commitment hash matches the on-chain record for that `trade_id` | Operator forging or altering trade data after placement |
+| | A2 | `sorted_trade_ids` are strictly ascending (O(N) adjacency check) | Duplicate trade IDs inflating payouts |
+| | A3 | Trades sorted by `trader_pubkey` before streaming hash | Enables single linear-time SHA-256 pass |
+| | A4 | `multiplier_bps ∈ [10000, market_max_multiplier]` for every trade | Infinite-payout attack via fabricated multiplier |
+| | A5 | Each trade's window is fully inside the batch window | Out-of-window trade insertion |
+| **B — OHLC / Oracle Validity** | B1 | OHLC ticks in strictly chronological order | Time-reversal attacks picking favorable candles |
+| | B2 | `low ≤ open ≤ high` and `low ≤ close ≤ high` for every candle | Internally inconsistent fabricated candles |
+| | B3 | OHLC sequence covers the entire batch window without gaps | Operator omitting unfavorable price intervals |
+| | B4 | Exactly 3 Pyth checkpoints exist, strictly sorted by `publish_time` | Adding/removing/reordering checkpoints to shift oracle anchor |
+| | B5 | *(Reserved)* | — |
+| | B6 | Each Pyth checkpoint price is within `MAX_DEVIATION_BPS` (200 bps) of the nearest OHLC close | Fabricated OHLC diverging from on-chain oracle |
+| **C — Outcome Determination** | C1–C3 | Settlement candle correctly identified; close-in-band determination computed correctly | Wrong win/loss assignments |
+| | C4 | `gross_payout = stake × multiplier_bps / 10_000` for every winner | Payout inflation beyond agreed multiplier |
+| **D — Pool Solvency** | D1 | `pool_balance_after` satisfies the conservation identity | Pool draining via misreported balance |
+| | D2 | *(Reserved)* | — |
+| | D3 | `keeper_fee = \|net_payout\| × keeper_fee_bps / 10_000` | Keeper inflating its own fee |
+| | D4 | `protocol_fee` only charged when `net_payout < 0` | Protocol fee extraction when pool is paying out winners |
+| | D5 | *(Removed — enforced on-chain instead)* | Was in-circuit solvency re-check; moved to Solana program for gas optimization |
+| | D6 | `num_winners + num_losers = num_trades` | Trade count manipulation; silent drops or double-counts |
+| **E — Commitment** | E1 | `payouts_commitment` equals the Merkle root computed inside the circuit | Operator submitting false Merkle root enabling fraudulent claims |
+| **F — Uniqueness** | F1–F2 | No duplicate `trade_id` values (sorted adjacency check) | Double-counting a trade to inflate payout |
+| | F3 | `stake > 0` for every trade | Zero-stake ghost trades affecting statistics |
+
+---
+
+## Group Summaries
+
+**A — Trade Validity:** A1 is the core integrity check — recomputes each trade's SHA-256 commitment from its fields and confirms it matches the on-chain record. A2 and F1–F2 eliminate duplicate attacks via sorted adjacency in O(N).
+
+**B — Price Data Integrity:** B1–B3 establish OHLC forms a coherent, gapless sequence. B4 requires exactly 3 Pyth checkpoints (no cherry-picking). B6 is the oracle bridge: constrains OHLC within 200 bps of Pyth, making it computationally infeasible to fabricate candles that diverge from the live market.
+
+**C — Outcome & Payout:** C1–C3 determine win/loss from settlement candle close vs. price band. C4 enforces exact payout arithmetic — no rounding errors, no inflation.
+
+**D — Pool Accounting:** D1 enforces the pool balance transition formula. D3–D4 constrain fees to agreed rates. D6 ensures trade count consistency. D5 was moved to the on-chain program to avoid redundant in-circuit computation.
+
+**E — Merkle Commitment:** E1 is the gateway for winner claims. The circuit builds the binary SHA-256 Merkle tree over all payout leaves and stores the root as `payouts_commitment`, which becomes the on-chain anchor in `batch_receipt`.
+
+**F — Uniqueness:** Belt-and-suspenders deduplication alongside A2. F3 rejects zero-stake trades.
+
+---
+
+## 20-Field Public Output Preimage
+
+All constraint outputs collapse into one SHA-256 hash (`public_outputs_hash`) submitted on-chain. Fields in canonical order:
+
+1. `batch_id` — `[u8; 32]`
+2. `window_start` — `i64`
+3. `window_end` — `i64`
+4. `num_trades` — `u32`
+5. `market_regime_id` — `u64`
+6. `market_max_multiplier` — `u32`
+7. `pyth_checkpoints_hash` — `[u8; 32]`
+8. `pool_balance_before` — `u64`
+9. `pool_balance_after` — `u64`
+10. `current_liability_before` — `u64`
+11. `net_payout` — `i64`
+12. `keeper_fee` — `u64`
+13. `protocol_fee` — `u64`
+14. `num_winners` — `u32`
+15. `num_losers` — `u32`
+16. `total_winners_payout` — `u64`
+17. `total_losers_stake` — `u64`
+18. `payouts_commitment` — `[u8; 32]` (Merkle root)
+19. `trades_commitment` — `[u8; 32]` (streaming SHA-256 of all trade hashes)
+20. `nullifier_hash` — `[u8; 32]`
+
+The Solana program recomputes this hash from the 20 parameters in `verify_and_settle` and checks equality against the Groth16 public input. A proof generated for one set of parameters cannot be reused for different ones.
+
+
+================================================================================
+# On-Chain Verification
+URL: https://carnot.finance/documentation/zk-settlement/on-chain-verification
+================================================================================
+# On-Chain Verification
+
+After the keeper generates a Groth16 proof, it submits it via `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. This instruction atomically verifies the proof and finalizes the batch. Every step is atomic — any failure reverts with no state change.
+
+## Execution Steps
+
+**Step 1 — Groth16 pairing check**
+
+The program invokes Solana's native BN254 precompile:
+
+$$e(\pi_A,\, \pi_B) = e(\alpha, \beta) \cdot e\!\left(l \cdot \gamma^{-1},\, \gamma\right) \cdot e(\pi_C, \delta)$$
+
+where $l$ is `public_outputs_hash` as a field element. Failure here aborts immediately.
+
+**Step 2 — Nullifier replay check**
+
+Loads PDA at `["nullifier", nullifier_hash]`. If it exists, fails with "account already in use." This is the primary replay protection.
+
+**Step 3 — Public outputs hash binding**
+
+Recomputes `public_outputs_hash` locally from the 20 settlement parameters in canonical order. Checks:
+
+```
+recomputed_hash == public_outputs_hash (from the Groth16 public input)
+```
+
+A proof generated for different settlement parameters fails this check.
+
+**Step 4 — Create nullifier PDA**
+
+Creates `["nullifier", nullifier_hash]` as a minimal rent-exempt account. Existence permanently marks this batch as settled. Any future re-submission fails at Step 2.
+
+**Step 5 — Create `batch_receipt` PDA**
+
+Creates `["batch", batch_id]` containing:
+- `merkle_root` = `payouts_commitment`
+- `window_start`, `window_end`
+- `settled = true`
+- `market_id`, `num_trades`, `num_winners`, `num_losers`
+
+This PDA is the anchor for all subsequent winner claims.
+
+**Step 6 — Update pool balance**
+
+Updates vault tracked balance to `pool_balance_after`. Transfers `keeper_fee` USDT to keeper's token account. Transfers `protocol_fee` USDT to protocol treasury (if > 0).
+
+**Step 7 — Emit settlement event**
+
+Anchor `emit!` logs all settlement fields. Indexers and frontends subscribe to this to update state in real time.
+
+---
+
+## Replay Protection
+
+```
+nullifier_hash = SHA256(batch_id ‖ sorted_trade_id_1 ‖ ... ‖ sorted_trade_id_N)
+```
+
+Trade IDs are sorted and deduplicated by constraints A2/F1–F2. Solana's runtime forbids re-initializing an existing PDA, so replay is impossible even if the keeper reacquires a previously submitted proof.
+
+---
+
+## Winner Claims
+
+Once `batch_receipt` exists, winners call `distribute_winnings`:
+
+1. Construct Merkle proof: `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout_amount ‖ leaf_index)`
+2. Submit leaf data + Merkle proof path
+3. Program verifies path against `batch_receipt.merkle_root`
+4. Checks `["claim_receipt", batch_id, trade_id]` doesn't exist
+5. Creates `claim_receipt`, transfers `payout_amount` USDT from vault
+
+No trust in the keeper required — the proof is self-contained and verified against the ZK-guaranteed root.
+
+
+================================================================================
+# ZK Settlement — Overview
+URL: https://carnot.finance/documentation/zk-settlement/overview
+================================================================================
+import { DocsSettlementPipelineDiagram } from "../../components/WorkflowEmbeds";
+
+# ZK Settlement — Overview
+
+Every settlement batch is verified by a Groth16 ZK proof before any funds move. The operator cannot produce a valid proof for an incorrectly computed batch — the math makes it impossible.
+
+## Why ZK Proofs
+
+Without a cryptographic guarantee, the operator could:
+- Flip a winning trade to a losing outcome
+- Inflate payouts for favored traders
+- Submit a settlement with fabricated price data
+- Undercount pool liability
+
+A ZK proof eliminates all of these. The operator must prove it executed a specific, publicly auditable Rust program — the Carnot circuit — satisfying all 28 constraints. Any invalid input causes proof generation to abort.
+
+## Pipeline
+
+<DocsSettlementPipelineDiagram />
+
+1. **Batch assembly** — Worker collects all `place_trade` events, 5-second OHLC candles, and 3 Pyth checkpoints for the 1-minute window.
+2. **Circuit execution** — SP1 zkVM runs the Carnot Rust circuit against the batch inputs. Any failed constraint aborts proof generation.
+3. **Proof generation** — SP1 wraps the execution trace into a Groth16 SNARK: `proof_a` (64 bytes), `proof_b` (128 bytes), `proof_c` (64 bytes), plus a 32-byte `public_outputs_hash`.
+4. **Keeper submission** — Keeper calls `verify_and_settle` with the proof and 20 settlement fields.
+5. **On-chain verification** — Solana program runs BN254 pairing check. Also recomputes `public_outputs_hash` from the 20 supplied parameters and checks it matches the proof's public input.
+6. **State finalization** — `batch_receipt` PDA created (`settled=true`, Merkle root), pool balance updated, nullifier stamped.
+
+## What the Proof Guarantees
+
+A passing Groth16 verification proves **every constraint was satisfied for the exact inputs committed in `public_outputs_hash`**:
+
+- Trade commitment hashes match on-chain records; multipliers in-bounds; windows inside batch
+- OHLC candles are internally consistent, chronologically ordered, within 200 bps of 3 Pyth checkpoints
+- Win/loss determined correctly per settlement candle close; payouts computed as `stake × multiplier / 10_000`
+- Pool balance transition satisfies the conservation identity; fees computed correctly
+- Nullifier hash is unique to this batch (no replay possible)
+- `payouts_commitment` is the correct Merkle root over all payout leaves
+
+## Open Source
+
+The full circuit lives in `carnot-circuit/`. Anyone can read the Rust code and reproduce any proof. The SP1 proving system is also open source.
+
+
+================================================================================
+# SP1 zkVM & Groth16
+URL: https://carnot.finance/documentation/zk-settlement/sp1-groth16
+================================================================================
+# SP1 zkVM & Groth16
+
+Carnot's settlement proofs are generated by SP1 (Succinct Labs), a general-purpose ZK virtual machine.
+
+## How SP1 Works
+
+SP1 compiles Rust to **RISC-V** and proves, cryptographically, that a specific execution trace was carried out correctly. The circuit is just a normal Rust program — auditors read Rust, not circuit gadgets.
+
+**Two-phase pipeline:**
+
+1. **STARK phase** — SP1 generates a STARK proof of the RISC-V execution trace. Large (tens of KB), no trusted setup, impractical for on-chain use.
+2. **SNARK wrapping** — SP1 wraps the STARK into a **Groth16 SNARK**. Output: a 256-byte constant-size proof and a 32-byte public hash.
+
+The trusted setup for Groth16 is performed once by Succinct Labs for the SP1 wrapping circuit. Carnot inherits this setup — it doesn't run its own ceremony.
+
+## Groth16 Proof Structure
+
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `proof_a` | G1 point | 64 bytes | $\pi_A$ |
+| `proof_b` | G2 point | 128 bytes | $\pi_B$ |
+| `proof_c` | G1 point | 64 bytes | $\pi_C$ |
+
+Total: **256 bytes**, constant regardless of batch size or computation complexity.
+
+## Verification Equation
+
+The on-chain verifier checks:
+
+$$e(\pi_A,\, \pi_B) = e(\alpha, \beta) \cdot e\!\left(\sum_i l_i \cdot \gamma_i,\, \gamma\right) \cdot e(\pi_C, \delta)$$
+
+where $e(\cdot,\cdot)$ is the BN254 ate pairing, $\alpha$, $\beta$, $\gamma$, $\delta$ are proving key constants, and $l_i$ are the public inputs — in Carnot's case, just `public_outputs_hash`. If the equation holds, the proof is valid.
+
+## Why Groth16 on Solana
+
+- **Constant size** — 256 bytes always. A proof for 10 trades is the same size as a proof for 10,000.
+- **O(1) verification** — Fixed number of BN254 pairing operations regardless of computation size.
+- **BN254 precompile** — Solana's runtime has native BN254 support; the pairing check runs in optimized native code, not interpreted Rust.
+
+## Single Public Input: `public_outputs_hash`
+
+Groth16 verification cost scales with the number of public inputs. Carnot collapses all 20 settlement fields into one SHA-256 hash:
+
+```
+public_outputs_hash = SHA256(
+  batch_id ‖ window_start ‖ window_end ‖ num_trades ‖
+  market_regime_id ‖ market_max_multiplier ‖ pyth_checkpoints_hash ‖
+  pool_balance_before ‖ pool_balance_after ‖ current_liability_before ‖
+  net_payout ‖ keeper_fee ‖ protocol_fee ‖
+  num_winners ‖ num_losers ‖ total_winners_payout ‖ total_losers_stake ‖
+  payouts_commitment ‖ trades_commitment ‖ nullifier_hash
+)
+```
+
+The program recomputes this hash from the instruction parameters and checks equality — a proof can't be detached from the data it was generated for.
+
+## Prover Modes
+
+| Mode | Use Case | Speed |
+|------|----------|-------|
+| `SP1_PROVER=local` | Dev / testing | Slow (tens of minutes on laptop) |
+| `SP1_PROVER=network` | Production | Fast (typically seconds to a few minutes per 1-minute batch) |
+

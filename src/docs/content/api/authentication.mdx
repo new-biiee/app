@@ -1,0 +1,65 @@
+# Authentication
+
+Carnot uses EVM wallet signature challenges. Sign a backend-issued nonce to prove wallet ownership; receive a JWT for all subsequent API calls.
+
+## Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/auth/challenge` | — | Get a one-time nonce for a wallet address |
+| `POST` | `/api/auth/login` | — | Submit signed nonce, receive JWT |
+| `GET` | `/api/auth/wss-key` | JWT Bearer | Get a short-lived WebSocket session key |
+
+## Flow
+
+**Step 1 — Get challenge**
+
+```
+GET /api/auth/challenge?address={wallet_address}
+```
+
+`wallet_address` must be a valid EVM address (0x-prefixed, 42 chars). Returns a nonce that expires in ~5 minutes.
+
+```json
+{ "nonce": "a3f8c2d1e9b04751..." }
+```
+
+**Step 2 — Sign the nonce**
+
+Sign with `personal_sign` (EIP-191):
+
+```javascript
+const signature = await signer.signMessage(nonce);
+```
+
+**Step 3 — Exchange for JWT**
+
+```
+POST /api/auth/login
+{ "address": "0xYourWalletAddress", "signature": "0xSignedNonce..." }
+```
+
+```json
+{ "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+```
+
+Use the JWT as `Authorization: Bearer {token}` on all protected endpoints. The SDK doesn't auto-refresh — detect `401 Unauthorized` and re-authenticate.
+
+## WebSocket Auth
+
+WebSocket connections use a short-lived `wssKey` instead of the JWT directly (avoids JWT in URLs/browser history):
+
+```
+GET /api/auth/wss-key
+Authorization: Bearer {JWT}
+→ { "wssKey": "wsk_a1b2c3d4e5..." }
+```
+
+## Token Summary
+
+| Token | Issued By | Used For |
+|-------|-----------|---------|
+| JWT | `POST /api/auth/login` | All REST endpoints |
+| wssKey | `GET /api/auth/wss-key` | Socket.IO connection |
+| API Key | Provisioned at deploy | Keeper settlement endpoints |
+| Bearer (keeper) | Provisioned at deploy | Keeper internal batch data |

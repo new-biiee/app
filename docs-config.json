@@ -1,0 +1,7 @@
+{
+  "site_title": "Carnot Protocol",
+  "site_description": "The world's most advanced provably-fair tap-trading prediction market on Solana. Every settlement batch is verified by a ZK proof — outcomes are trustless and auditable.",
+  "github_repo": "your-org/carnot-protocol",
+  "github_branch": "main",
+  "production_url": "https://carnot.finance"
+}

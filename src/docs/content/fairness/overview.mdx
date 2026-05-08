@@ -1,0 +1,36 @@
+import { DocsProvableFairnessDiagram } from "../../components/WorkflowEmbeds";
+
+# Fairness & Market Design
+
+Carnot's "provably fair" guarantee is a specific technical claim: every outcome can be independently verified against public on-chain data without trusting the operator at any stage.
+
+<DocsProvableFairnessDiagram />
+
+## Three Pillars
+
+### 1 — Transparent Pricing
+
+Every cell in the price grid carries a `gridSignature` (HMAC-SHA256 over all cell fields — market, window, band, reward rate). It's computed **before the window opens**, so the reward rate is committed before any user bets. The ZK circuit verifies each order's reward rate against the committed cell. Anyone with the published backend key can verify the signature independently.
+
+### 2 — Oracle Binding
+
+Internal OHLC price data is cross-validated against the **Pyth on-chain oracle** at 3 checkpoints per batch (window start, midpoint, end). The ZK circuit enforces each checkpoint is within **200 bps (2%)** of the nearest OHLC close. An operator can't fabricate OHLC data that diverges materially from the public Pyth feed — any attempt fails proof generation.
+
+### 3 — ZK Settlement
+
+The SP1-based ZK circuit verifies correctness of every 1-minute batch in a single Groth16 proof (~200,000 compute units on Solana). The 28 constraints (A1–F3) ensure: correct win/loss per settlement candle, correct payouts per committed multiplier, correct pool conservation, correct Merkle root, unique batch nullifier, and valid Pyth cross-validation.
+
+A batch that passes on-chain verification has been mathematically proven correct. There's no way to post a valid proof for an incorrectly settled batch.
+
+---
+
+> **Note on current deployment:** Fairness pillars 1 and 3 apply fully. The full five-layer pricing model (live Monte Carlo, EWMA+Hawkes volatility, CVaR-gated pool management) is under development. The live system uses pre-calibrated fixed coefficients — see [The Complete Model](/documentation/fairness/complete-model).
+
+---
+
+**In this section:**
+- [Price Feed & Oracle Binding](/documentation/fairness/price-feed)
+- [Reward Rate Model](/documentation/fairness/pricing-model)
+- [Pool Solvency Model](/documentation/fairness/pool-solvency)
+- [Risk Model](/documentation/fairness/risk-model)
+- [The Complete Model — Vision](/documentation/fairness/complete-model)

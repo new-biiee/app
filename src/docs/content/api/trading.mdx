@@ -1,0 +1,115 @@
+# Trading API
+
+All trading endpoints require `Authorization: Bearer {JWT}`.
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/orders` | Place a new order |
+| `GET` | `/api/orders/user` | Get paginated order history |
+
+---
+
+## Place an Order
+
+```
+POST /api/orders
+Authorization: Bearer {JWT}
+```
+
+**Request body:**
+
+```json
+{
+  "cell": {
+    "marketId": "BTC-USDT",
+    "gridTs": 1714000000000,
+    "startTs": 1714000300000,
+    "endTs": 1714000600000,
+    "lowerPrice": "63500.00",
+    "upperPrice": "64000.00",
+    "rewardRate": 18500,
+    "gridSignature": "a3f8c2d1e9b04751..."
+  },
+  "stake": "1000000",
+  "multiplierBps": 15000
+}
+```
+
+The `cell` object must come directly from a `gridUpdate` Socket.IO event — don't modify any field or `gridSignature` validation will fail.
+
+**Response:**
+
+```json
+{
+  "orderId": "ord_9a3f2c...",
+  "status": "PENDING",
+  "marketId": "BTC-USDT",
+  "stake": "1000000",
+  "lowerPrice": "63500.00",
+  "upperPrice": "64000.00",
+  "rewardRate": 18500,
+  "startTs": 1714000300000,
+  "endTs": 1714000600000
+}
+```
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `400` | Invalid/expired `gridSignature` or insufficient balance |
+| `409` | Order on this cell already exists for this user |
+| `429` | Rate limit exceeded |
+
+---
+
+## Order Status & Outcome Enums
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Evaluating against live price stream |
+| `SETTLED` | WIN or LOSS determined, awaiting batch |
+| `OPEN` | In evaluation window |
+| `CANCELLED` | Cancelled before settlement |
+
+| Outcome | Description |
+|---------|-------------|
+| `WIN` | Settlement candle close inside the band |
+| `LOSS` | Settlement candle close outside the band |
+| `null` | Still pending |
+
+---
+
+## Get Order History
+
+```
+GET /api/orders/user?page=1&limit=20&marketId=BTC-USDT&status=SETTLED
+Authorization: Bearer {JWT}
+```
+
+**Response:**
+
+```json
+{
+  "data": [{
+    "orderId": "ord_9a3f2c...",
+    "marketId": "BTC-USDT",
+    "status": "SETTLED",
+    "outcome": "WIN",
+    "stake": "1000000",
+    "payout": "1850000",
+    "lowerPrice": "63500.00",
+    "upperPrice": "64000.00",
+    "startTs": 1714000300000,
+    "endTs": 1714000600000,
+    "settledAt": "2024-04-25T12:10:05.000Z"
+  }],
+  "total": 42,
+  "page": 1,
+  "limit": 20
+}
+```
+
+`payout` is in micro-USDT (divide by 1,000,000 for USDT). It's `"0"` for losses. Outcomes are written within 100–200 ms of `endTs` — subscribe to `orderResult` on Socket.IO for immediate notification.

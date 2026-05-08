@@ -1,0 +1,72 @@
+import {
+  DocsFiveLayerStackDiagram,
+  DocsOracleBindingDiagram,
+  DocsProvableFairnessDiagram,
+  DocsSettlementFlowDiagram,
+  DocsSettlementPipelineDiagram,
+  DocsSystemArchitectureDiagram,
+} from "../../components/WorkflowEmbeds";
+
+# Diagram Gallery
+
+Interactive workflow diagrams used throughout the docs — **Web2-speed UX** vs **Web3-grade settlement**, system boundaries, the ZK batch pipeline, quantitative pricing stack, and oracle binding. Each graphic auto-advances through labeled edges; refresh the page to resync animations.
+
+---
+
+## A — Trade-to-Payout Lifecycle
+
+For traders and LPs: stake → 5s window → aggTrade outcome → 1m ZK batch on Solana → Merkle claim.
+
+<DocsSettlementFlowDiagram />
+
+**Also covered in:** [How It Works](/documentation/overview/how-it-works)
+
+---
+
+## B — Provable Fairness (vs Centralized)
+
+Black-box operator settlement vs Binance + Pyth cross-check locked by the SP1 circuit.
+
+<DocsProvableFairnessDiagram />
+
+**Also covered in:** [Fairness Overview](/documentation/fairness/overview)
+
+---
+
+## C — High-Level System Architecture
+
+React SPA, NestJS + Socket.IO, databases, Kafka, worker & keeper, SP1, and `carnot_engine` on Solana.
+
+<DocsSystemArchitectureDiagram />
+
+**Also covered in:** [Architecture](/documentation/overview/architecture), [Backend Architecture](/documentation/backend/architecture)
+
+---
+
+## D — ZK Settlement Pipeline (Batch State Machine)
+
+`PENDING` assembly → `ZK_PROVING` in SP1 → `ON_CHAIN` via `verify_and_settle`, with the 20-field public output preimage.
+
+<DocsSettlementPipelineDiagram />
+
+**Also covered in:** [ZK Settlement Overview](/documentation/zk-settlement/overview)
+
+---
+
+## E — Five-Layer Quantitative Pricing Stack
+
+EGARCH → Hawkes / Sobol jump-diffusion → Kou barrier → Avellaneda–Stoikov + VPIN → EVT CVaR → signed grid cell.
+
+<DocsFiveLayerStackDiagram />
+
+**Also covered in:** [The Complete Model](/documentation/fairness/complete-model)
+
+---
+
+## F — Cryptographic Oracle Binding
+
+1-minute batch window, three Pyth checkpoints, circuit constraint **|OHLC close − Pyth| ≤ 2%** (200 bps).
+
+<DocsOracleBindingDiagram />
+
+**Also covered in:** [Price Feed & Oracle Binding](/documentation/fairness/price-feed), [Circuit Constraints](/documentation/zk-settlement/circuit-constraints)

@@ -1,0 +1,53 @@
+# Fee Structure
+
+All fees are in basis points (bps). 1 bps = 0.01%.
+
+## Fee Parameters
+
+| Parameter | Value (bps) | % | Description |
+|---|---|---|---|
+| `KEEPER_FEE_BPS` | 25 | 0.25% | Paid to the keeper per batch |
+| `PROTOCOL_FEE_BPS` | 100 | 1.00% | Paid to protocol treasury (pool-gains batches only) |
+| `PLATFORM_EDGE_BPS` | 700 | 7.00% | Embedded in multiplier calibration — not a deducted fee |
+| `MIN_SOLVENCY_RATIO_BPS` | 15,000 | 150% | Pool must be ≥ 1.5× total liability |
+| `MAX_UTILIZATION_BPS` | 7,000 | 70% | Max fraction of pool at risk |
+| `MAX_SINGLE_BET_EXPOSURE_BPS` | 200 | 2.00% | Max single bet payout as fraction of pool |
+
+---
+
+## Formulas
+
+**Gross payout** (per winning trade):
+
+$$\text{gross\_payout} = \text{stake} \times \dfrac{\text{multiplier\_bps}}{10{,}000}$$
+
+**Net payout** (batch level — from pool's perspective):
+
+$$\text{net\_payout} = \sum_{\text{winners}} (\text{gross\_payout}_i - \text{stake}_i) - \sum_{\text{losers}} \text{stake}_j$$
+
+- `net_payout > 0` → pool pays out to winners
+- `net_payout < 0` → pool gains from losers
+
+**Keeper fee** (charged regardless of direction):
+
+$$\text{keeper\_fee} = |\text{net\_payout}| \times \dfrac{25}{10{,}000}$$
+
+**Protocol fee** (only when pool gains, i.e. `net_payout < 0`):
+
+$$\text{protocol\_fee} = |\text{net\_payout}| \times \dfrac{100}{10{,}000}$$
+
+**Pool balance update:**
+
+When `net_payout ≥ 0`:
+$$\text{pool\_after} = \text{pool\_before} - \text{net\_payout} - \text{keeper\_fee}$$
+
+When `net_payout < 0`:
+$$\text{pool\_after} = \text{pool\_before} + |\text{net\_payout}| - \text{keeper\_fee} - \text{protocol\_fee}$$
+
+This pool conservation identity is one of the 28 ZK constraints — invalid updates cause proof generation to fail.
+
+---
+
+## Platform Edge
+
+`PLATFORM_EDGE_BPS = 700` is not deducted as a fee. It's embedded in the multiplier calibration: the fair-value multiplier is scaled down by 7%, so the implied win probability is slightly higher than the true probability. The pool earns a long-run statistical edge uniformly across all cells.

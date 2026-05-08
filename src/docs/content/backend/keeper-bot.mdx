@@ -1,0 +1,62 @@
+import { DocsZkSettlementProofDiagram } from "../../components/WorkflowEmbeds";
+
+# Keeper Bot
+
+The keeper bridges the backend batch system and the on-chain Solana program. Only the address registered in `global_state.keeper` can submit proofs. Without the keeper, no winnings can be claimed on-chain.
+
+The keeper earns **0.25% of `|netPoolDelta|`** per batch and tracks fees locally in `rewards.db` (SQLite).
+
+<DocsZkSettlementProofDiagram />
+
+## Polling Loop
+
+Roughly every minute (aligned to batch boundaries):
+
+1. `GET /api/v1/settlement/batches/pending?windowStart=X&windowEnd=Y` (X-API-KEY) — find `PENDING` batches
+2. `GET /api/internal/batch/{batchId}/data` (Bearer token) — fetch full batch JSON
+3. Serialize batch JSON as SP1 circuit input
+4. Spawn `./carnot` binary (`SP1_PROVER=local|network`) — wait for Groth16 proof
+5. Call `verify_and_settle` on Solana with the proof and all settlement parameters
+6. `POST /api/v1/settlement/batches/{batchId}/committed` (X-API-KEY) with `{ txHash, merkleRoot }`
+7. Append to `rewards.db`: `{ batchId, txHash, keeperFee, window_start, window_end, merkle_root }`
+
+## Authentication
+
+| Endpoint | Auth |
+|----------|------|
+| `/api/v1/settlement/*` (batch listing, committed) | `X-API-KEY: {key}` |
+| `/api/internal/batch/{id}/data` (full financial data) | `Authorization: Bearer {token}` |
+
+The split provides a privilege boundary — the API key alone can't access full batch data.
+
+## Prover Modes
+
+| Mode | Use Case |
+|------|----------|
+| `SP1_PROVER=local` | Development, testing, small batches |
+| `SP1_PROVER=network` | Production — faster, parallelizable via Succinct Labs network |
+
+Proof generation timeout: **90 seconds** (`PROOF_GENERATION_TIMEOUT_MS = 90_000`). On timeout, the keeper logs an error and retries in the next polling cycle.
+
+## Liveness & Slashing
+
+| Parameter | Value |
+|-----------|-------|
+| `MAX_MISSED_WINDOWS_BEFORE_SLASH` | 3 |
+| `SLASH_RATE_BPS` | 500 (5%) |
+
+Missing 3 consecutive 1-minute windows triggers a 5% slash of the keeper's staked collateral.
+
+## Environment Variables
+
+```bash
+CARNOT_API_URL=https://api.carnot.fi
+CARNOT_API_KEY=<api-key>
+CARNOT_BEARER_TOKEN=<bearer-token>
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+KEEPER_KEYPAIR_PATH=~/.config/solana/keeper.json
+SP1_PROVER=network
+PROOF_GENERATION_TIMEOUT_MS=90000
+```
+
+Run as a persistent service (systemd or container orchestrator) to minimize missed windows.

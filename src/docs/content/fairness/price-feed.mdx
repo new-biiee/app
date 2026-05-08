@@ -1,0 +1,58 @@
+import { DocsOracleBindingDiagram } from "../../components/WorkflowEmbeds";
+
+# Price Feed & Oracle Binding
+
+Two independent price sources cross-validate each other, making price manipulation economically infeasible.
+
+<DocsOracleBindingDiagram />
+
+## Layer 1 — Binance Futures aggTrade
+
+```
+wss://fstream.binance.com/ws/{symbol}@aggTrade
+```
+
+Symbols: `btcusdt`, `ethusdt`, `solusdt`.
+
+The Binance **Futures** market (not spot) is used because it has tighter spreads, higher liquidity, professional/institutional order flow, and higher notional volume — all of which raise the cost of sustained price manipulation.
+
+The aggTrade stream feeds the OHLC builder (5-second candles). The **settlement candle close** — the OHLC close of the last completed candle at or before `window_end` — is the deterministic reference for win/loss outcomes.
+
+## Layer 2 — Pyth Oracle Checkpoints
+
+For each settlement batch, the ZK circuit samples Pyth at **3 checkpoints**:
+
+| Checkpoint | Timing |
+|---|---|
+| 1 | `window_start` |
+| 2 | `(window_start + window_end) / 2` |
+| 3 | `window_end` |
+
+At each checkpoint, the circuit verifies:
+
+$$\text{diff} \times 10{,}000 \le \text{normalizedPythPrice} \times \text{MAX\_DEVIATION\_BPS}$$
+
+where `MAX_DEVIATION_BPS = 200` (2%) and:
+
+$$\text{normalizedPythPrice} = \text{pythPrice} \times 10^{(\text{exponent} + 6)}$$
+
+The `+6` converts from USD to micro-USD to match internal OHLC representation.
+
+Any fabricated OHLC close that deviates more than 2% from the on-chain Pyth price causes proof generation to fail. Because Pyth aggregates from multiple independent sources, an operator can't control both feeds simultaneously.
+
+## Pyth Feed IDs
+
+| Market | Feed ID |
+|--------|---------|
+| BTC/USDT | `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43` |
+| JUP/USDT | Coming Soon |
+| SOL/USDT | `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d` |
+
+These are Pyth price feed account addresses on Solana mainnet. The ZK circuit reads them at proof generation time and includes them as public inputs, making the oracle binding fully auditable.
+
+## Summary
+
+| Layer | Source | Role |
+|-------|--------|------|
+| 1 | Binance Futures aggTrade | Real-time settlement (100 ms tick evaluation, OHLC construction) |
+| 2 | Pyth on-chain oracle | Batch cross-validation (3 checkpoints, max 2% deviation, ZK-enforced) |

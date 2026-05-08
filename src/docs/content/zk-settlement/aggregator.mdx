@@ -1,0 +1,26 @@
+# Aggregator Circuit
+
+For large batches, running the full settlement circuit over thousands of trades in a single prover invocation would take too long. Carnot solves this with chunked aggregation: split the batch into chunks, prove each chunk in parallel, then combine into a single final proof.
+
+## How It Works
+
+### Phase 1 — Parallel Chunk Proving
+
+The keeper splits the batch's trade list into fixed-size chunks. Each chunk is sent to the SP1 prover independently and simultaneously. Because chunks are independent, total wall-clock time ≈ time for a single chunk (not the sum of all chunks).
+
+Each chunk prover runs the per-trade constraint groups (A — trade validity, C — payout calculation, F — uniqueness) and outputs a partial Groth16 proof plus a partial commitment to its trades and payouts.
+
+### Phase 2 — Aggregator Circuit
+
+Once all chunk proofs are ready, `carnot-circuit/aggregator-program/` runs:
+
+1. **Verifies each partial proof** recursively via BN254 pairing
+2. **Merges partial commitments** into the final `payouts_commitment` Merkle root and `trades_commitment` hash
+3. **Applies batch-level constraints** — OHLC checks (B1–B6), pool conservation (D1), trade count (D6) — where the full trade set is needed
+4. **Outputs a single Groth16 proof** + 32-byte `public_outputs_hash`
+
+## Constant On-Chain Cost
+
+Only the final aggregated proof is submitted to Solana. From the on-chain verifier's perspective, every settlement is identical: a 256-byte Groth16 proof and a 32-byte hash. Verification cost (fixed BN254 pairing operations) is the same whether the batch has 10 or 10,000 trades — gas doesn't grow with batch size.
+
+The aggregator circuit source is fully open-sourced alongside the main circuit in `carnot-circuit/aggregator-program/`.

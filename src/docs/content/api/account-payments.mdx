@@ -1,0 +1,92 @@
+# Account & Payments
+
+All endpoints require `Authorization: Bearer {JWT}`. Amounts are in **micro-USDT** (integer, 6 decimal places — divide by 1,000,000 to get USDT).
+
+---
+
+## Balance
+
+```
+GET /api/account/balance
+```
+
+```json
+{ "free": "5000000", "locked": "1000000", "freeTap": "250000" }
+```
+
+| Field | Description |
+|-------|-------------|
+| `free` | Available — can be staked or withdrawn |
+| `locked` | In open orders — released on settlement |
+| `freeTap` | Testnet faucet credit (separate from main balance) |
+
+---
+
+## Payment Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/payment/debug/deposit` | Test deposit — testnet only |
+| `POST` | `/api/payment/withdraw` | Initiate withdrawal |
+| `POST` | `/api/payment/debug/finalize-withdrawal` | Finalize withdrawal — testnet only |
+| `GET` | `/api/payment/deposits` | Deposit history |
+| `GET` | `/api/payment/withdrawals` | Withdrawal history |
+
+---
+
+## Deposits
+
+**Debug deposit (testnet only):**
+
+```
+POST /api/payment/debug/deposit
+{ "amount": "10000000" }
+```
+
+Immediately credits `free` balance. Returns `403 Forbidden` on mainnet.
+
+**Production deposits:** Send USDT to the Carnot vault PDA on Solana:
+
+```typescript
+findCarnotVaultPda(programId)  // from @carnot/sdk
+```
+
+The backend detects the on-chain deposit event and credits your account after confirmation.
+
+---
+
+## Withdrawals
+
+**Initiate:**
+
+```
+POST /api/payment/withdraw
+{ "amount": "5000000", "destinationAddress": "0xYourEvmWalletAddress" }
+```
+
+Moves funds from `free` to pending. Response includes `withdrawalId` and status `PENDING`.
+
+**Debug finalize (testnet only):**
+
+```
+POST /api/payment/debug/finalize-withdrawal
+{ "withdrawalId": "wdr_2e9f4a..." }
+```
+
+On mainnet, finalization happens after batch ZK proof is committed on-chain. Expect on the order of minutes under normal conditions (batches are proved every minute).
+
+**Withdrawal statuses:**
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Awaiting batch inclusion |
+| `BATCHED` | In a settlement batch, awaiting ZK proof |
+| `FINALIZED` | Proof on-chain, funds released |
+| `CANCELLED` | Cancelled before finalization |
+
+---
+
+**Notes:**
+- Debug endpoints return `403 Forbidden` on mainnet.
+- `locked` balance is not withdrawable — wait for open orders to settle.
+- Always pass amounts as strings, not numbers, to avoid JSON float precision issues.

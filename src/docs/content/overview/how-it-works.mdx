@@ -1,0 +1,62 @@
+import { DocsSettlementFlowDiagram } from "../../components/WorkflowEmbeds";
+
+# How It Works
+
+<DocsSettlementFlowDiagram />
+
+---
+
+## Phase 1 — Trade Placement
+
+Every 250 ms the backend emits a signed price grid via Socket.IO (`gridUpdate`). Each cell carries an HMAC-SHA256 `gridSignature` committing the band, window timestamps, market, and reward rate before the window opens.
+
+The user picks a cell and posts `POST /api/orders` with the cell data. The backend validates: HMAC matches, window not expired, sufficient vault balance. On success, order is `PENDING`.
+
+---
+
+## Phase 2 — Real-Time Settlement
+
+The backend maintains a persistent WebSocket to Binance Futures (`fstream.binance.com/ws/{symbol}@aggTrade`) and builds 5-second OHLC candles from the tick stream.
+
+Every 100 ms, the tick evaluator scans all `PENDING` orders. When `window_end` is reached, it checks the settlement candle close:
+
+- Close **inside** $[\text{lowerPrice}, \text{upperPrice})$ → **WIN**
+- Close **outside** → **LOSS**
+
+Order is updated to `SETTLED` immediately. No on-chain transaction yet — the outcome is committed to Solana in the next phase.
+
+---
+
+## Phase 3 — ZK Proof & On-Chain Settlement
+
+Every minute, the Worker queries all `SETTLED` orders in the elapsed window, builds a binary SHA-256 Merkle tree over winner payouts, and writes a `settlement_batch` with status `PENDING`.
+
+The keeper bot aggregates pending batches each minute, feeds each batch to the SP1 prover binary (open-source `carnot-circuit`), and waits for a Groth16 proof. The circuit checks all 28 constraints: OHLC integrity, Pyth oracle cross-validation (3 checkpoints, max 2% deviation), win/loss correctness, pool conservation, and Merkle root.
+
+The keeper calls `verify_and_settle` on `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`. The on-chain BN254 pairing check runs. If it passes, the program writes a `batch_receipt` PDA containing the Merkle root, and stamps a nullifier PDA to prevent replay.
+
+---
+
+## Phase 4 — Claiming Winnings
+
+Winners call `distribute_winnings` with a Merkle inclusion proof:
+
+1. Program recomputes the leaf: `H("payout" ‖ batch_id ‖ trade_id ‖ trader_pubkey ‖ payout ‖ index)`
+2. Verifies the path against the stored Merkle root
+3. Checks the `claim_receipt` PDA doesn't exist (replay protection)
+4. Transfers USDT from the vault, creates `claim_receipt` PDA
+
+---
+
+## Dual Price Sources
+
+| Source                   | Usage                                                         |
+| ------------------------ | ------------------------------------------------------------- |
+| Binance Futures aggTrade | Real-time tick evaluation, OHLC construction                  |
+| Pyth on-chain oracle     | ZK circuit cross-validation (3 checkpoints, max 2% deviation) |
+
+The ZK circuit enforces that settlement prices stay within 2% of Pyth. Any divergence causes proof generation to fail — the backend can't silently use a manipulated price.
+
+---
+
+**Next:** [Architecture](/documentation/overview/architecture)

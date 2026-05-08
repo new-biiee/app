@@ -1,0 +1,224 @@
+[
+  {
+    "title": "Account & Payments",
+    "href": "/documentation/api/account-payments",
+    "section": "Api",
+    "body": "Account & Payments All endpoints require Authorization: Bearer {JWT}. Amounts are in micro-USDT (integer, 6 decimal places — divide by 1,000,000 to get USDT). -- Balance Field | Description | -------|-------------| free | Available — can be staked or withdrawn | locked | In open orders — released on"
+  },
+  {
+    "title": "Authentication",
+    "href": "/documentation/api/authentication",
+    "section": "Api",
+    "body": "Authentication Carnot uses EVM wallet signature challenges. Sign a backend-issued nonce to prove wallet ownership; receive a JWT for all subsequent API calls. Endpoints Method | Path | Auth | Description | --------|------|------|-------------| GET | /api/auth/challenge | — | Get a one-time nonce for"
+  },
+  {
+    "title": "Settlement API (Keeper)",
+    "href": "/documentation/api/settlement",
+    "section": "Api",
+    "body": "Settlement API (Keeper) These endpoints are for the keeper bot only — not for end users. See Keeper Bot for operational context. Auth Endpoint | Auth | ----------|------| /api/v1/settlement/, /api/v1/strategy/ | X-API-KEY: {key} | /api/internal/batch/{id}/data | Authorization: Bearer {token} | Endpo"
+  },
+  {
+    "title": "Trading API",
+    "href": "/documentation/api/trading",
+    "section": "Api",
+    "body": "Trading API All trading endpoints require Authorization: Bearer {JWT}. Endpoints Method | Path | Description | --------|------|-------------| POST | /api/orders | Place a new order | GET | /api/orders/user | Get paginated order history | -- Place an Order Request body: The cell object must come dire"
+  },
+  {
+    "title": "WebSocket Events",
+    "href": "/documentation/api/websocket",
+    "section": "Api",
+    "body": "WebSocket Events Carnot uses Socket.IO v4 over WSS. Price ticks, order results, and the price grid are all pushed — no polling needed. Connection First get a wssKey via GET /api/auth/wss-key (requires JWT), then: Events Event | Direction | Payload | -------|-----------|---------| newPrice | Server →"
+  },
+  {
+    "title": "Backend Architecture",
+    "href": "/documentation/backend/architecture",
+    "section": "Backend",
+    "body": "import { DocsFullSystemOverviewDiagram } from \"../../components/WorkflowEmbeds\"; import { DocsSystemArchitectureDiagram } from \"../../components/WorkflowEmbeds\"; Backend Architecture <DocsFullSystemOverviewDiagram /> The backend is a single deployable image running as two processes that share Postgr"
+  },
+  {
+    "title": "Batch Assembly",
+    "href": "/documentation/backend/batch-assembly",
+    "section": "Backend",
+    "body": "import { DocsZkSettlementProofDiagram } from \"../../components/WorkflowEmbeds\"; Batch Assembly Every minute the Worker wakes up and assembles a settlement batch — a self-contained record that is fed directly into the ZK circuit. <DocsZkSettlementProofDiagram /> Backend Service Flow (for this diagram"
+  },
+  {
+    "title": "Keeper Bot",
+    "href": "/documentation/backend/keeper-bot",
+    "section": "Backend",
+    "body": "import { DocsZkSettlementProofDiagram } from \"../../components/WorkflowEmbeds\"; Keeper Bot The keeper bridges the backend batch system and the on-chain Solana program. Only the address registered in globalstate.keeper can submit proofs. Without the keeper, no winnings can be claimed on-chain. The ke"
+  },
+  {
+    "title": "Order Engine",
+    "href": "/documentation/backend/order-engine",
+    "section": "Backend",
+    "body": "Order Engine The order engine validates incoming bets, tracks them against the live price stream, and settles them within milliseconds of the window closing. Order Submission Validation User calls POST /api/orders with the full cell object (including gridSignature) and a stake amount. Four checks mu"
+  },
+  {
+    "title": "Real-Time Price Feed",
+    "href": "/documentation/backend/price-feed",
+    "section": "Backend",
+    "body": "Real-Time Price Feed All price data originates from the Binance Futures aggTrade stream, dispatched to four internal consumers. Source One subscription per market (btcusdt, ethusdt, solusdt). The backend keeps the latest trade per market in memory, deduplicated by tradeId. Reconnects automatically w"
+  },
+  {
+    "title": "Fee Structure",
+    "href": "/documentation/core-mechanics/fee-structure",
+    "section": "Core Mechanics",
+    "body": "Fee Structure All fees are in basis points (bps). 1 bps = 0.01%. Fee Parameters Parameter | Value (bps) | % | Description | ---|---|---|---| KEEPERFEEBPS | 25 | 0.25% | Paid to the keeper per batch | PROTOCOLFEEBPS | 100 | 1.00% | Paid to protocol treasury (pool-gains batches only) | PLATFORMEDGEBPS"
+  },
+  {
+    "title": "Price Bands & Outcomes",
+    "href": "/documentation/core-mechanics/price-bands",
+    "section": "Core Mechanics",
+    "body": "Price Bands & Outcomes Every bet is placed on a price band — a fixed interval for a specific market and 5-second window. Band Definition Field | Description | -------|-------------| lowerPrice | Inclusive lower bound | upperPrice | Exclusive upper bound (lowerPrice + priceCellSize) | Fixed band widt"
+  },
+  {
+    "title": "The Price Grid",
+    "href": "/documentation/core-mechanics/price-grid",
+    "section": "Core Mechanics",
+    "body": "The Price Grid The grid is a 10×9 matrix of tradeable cells rebroadcast every 250 ms per market. Each cell is a unique (time window, price band) pair. Dimensions Dimension | Value | Meaning | -----------|-------|---------| gridNX | 10 | Time columns | gridNY | 9 | Price rows | Column width | 5 secon"
+  },
+  {
+    "title": "Settlement Batches",
+    "href": "/documentation/core-mechanics/settlement-batches",
+    "section": "Core Mechanics",
+    "body": "Settlement Batches All settled orders within a 1-minute window are aggregated into a settlement batch — a self-contained record verified by a single ZK proof. Batch Window Each batch covers exactly 1 minute (60 seconds) of settled orders, aligned to wall-clock boundaries. Orders settle after the pol"
+  },
+  {
+    "title": "Trade Lifecycle",
+    "href": "/documentation/core-mechanics/trade-lifecycle",
+    "section": "Core Mechanics",
+    "body": "Trade Lifecycle States a trade moves through from submission to on-chain claim: -- States PENDING Accepted by the backend, written to the database. The pool has reserved liquidity to cover the gross payout, and gridSignature has been verified. The tick evaluator checks the order every 100 ms against"
+  },
+  {
+    "title": "Diagram Gallery",
+    "href": "/documentation/diagram/overview",
+    "section": "Diagram",
+    "body": "import { DocsFiveLayerStackDiagram, DocsOracleBindingDiagram, DocsProvableFairnessDiagram, DocsSettlementFlowDiagram, DocsSettlementPipelineDiagram, DocsSystemArchitectureDiagram, } from \"../../components/WorkflowEmbeds\"; Diagram Gallery Interactive workflow diagrams used throughout the docs — Web2-"
+  },
+  {
+    "title": "The Complete Model — Vision",
+    "href": "/documentation/fairness/complete-model",
+    "section": "Fairness",
+    "body": "import { DocsBarrierCorrectionDiagram, DocsFiveLayerStackDiagram, DocsPricingEngineDiagram, DocsPricingPipelineDiagram, DocsQuoterDiagram, DocsRiskManagementDiagram, DocsVolatilityEngineDiagram, } from \"../../components/WorkflowEmbeds\"; The Complete Model — Vision The current deployment is a working"
+  },
+  {
+    "title": "Fairness & Market Design",
+    "href": "/documentation/fairness/overview",
+    "section": "Fairness",
+    "body": "import { DocsProvableFairnessDiagram } from \"../../components/WorkflowEmbeds\"; Fairness & Market Design Carnot's \"provably fair\" guarantee is a specific technical claim: every outcome can be independently verified against public on-chain data without trusting the operator at any stage. <DocsProvable"
+  },
+  {
+    "title": "Pool Solvency Model",
+    "href": "/documentation/fairness/pool-solvency",
+    "section": "Fairness",
+    "body": "Pool Solvency Model The LP pool is the counterparty for every bet. These invariants keep it solvent. Pool Conservation Identity (ZK-Enforced) At every settlement batch, the pool balance changes by an amount verified by constraint D1: When netpayout ≥ 0 (pool pays out): When netpayout < 0 (pool gains"
+  },
+  {
+    "title": "Price Feed & Oracle Binding",
+    "href": "/documentation/fairness/price-feed",
+    "section": "Fairness",
+    "body": "import { DocsOracleBindingDiagram } from \"../../components/WorkflowEmbeds\"; Price Feed & Oracle Binding Two independent price sources cross-validate each other, making price manipulation economically infeasible. <DocsOracleBindingDiagram /> Layer 1 — Binance Futures aggTrade Symbols: btcusdt, ethusd"
+  },
+  {
+    "title": "Reward Rate Model",
+    "href": "/documentation/fairness/pricing-model",
+    "section": "Fairness",
+    "body": "import { DocsBarrierCorrectionDiagram, DocsPricingEngineDiagram, } from \"../../components/WorkflowEmbeds\"; Reward Rate Model Every cell's reward rate is a function of two normalized variables: where: — normalized time offset — normalized price distance Model Structure is a polynomial-log parametric "
+  },
+  {
+    "title": "Risk Model",
+    "href": "/documentation/fairness/risk-model",
+    "section": "Fairness",
+    "body": "import { DocsRiskManagementDiagram } from \"../../components/WorkflowEmbeds\"; Risk Model CVaR — Primary Risk Measure Carnot uses CVaR (Conditional Value at Risk / Expected Shortfall) at 95% confidence: CVaR answers: \"Given we're in the worst 5% of outcomes, what's the expected loss?\" CVaR is more app"
+  },
+  {
+    "title": "First Integration",
+    "href": "/documentation/getting-started/first-integration",
+    "section": "Getting Started",
+    "body": "First Integration Full TypeScript script: deposit USDT → fetch grid → place trade → poll outcome → claim winnings. Prerequisites @carnot/sdk, @solana/web3.js, @coral-xyz/anchor installed Funded Solana wallet keypair (devnet or mainnet) Carnot API JWT (sign a challenge — see Authentication) -- Step 1"
+  },
+  {
+    "title": "Installation",
+    "href": "/documentation/getting-started/installation",
+    "section": "Getting Started",
+    "body": "Installation Install the SDK Peer dependencies: -- What the SDK Exports -- Protocol Constants Constant | Value | ----------|-------| CARNOTPROGRAMID | carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS | KEEPERFEEBPS | 25 | PROTOCOLFEEBPS | 100 | MINSOLVENCYRATIOBPS | 15000 | MAXUTILIZATIONBPS | 7000 | MAX"
+  },
+  {
+    "title": "Quickstart",
+    "href": "/documentation/getting-started/quickstart",
+    "section": "Getting Started",
+    "body": "Quickstart Get from zero to your first settled trade in under 5 minutes. Prerequisites Node.js 18+ Solana wallet (Phantom or Backpack) USDT (SPL) on the target network Carnot API endpoint (devnet or mainnet) -- Step 1 — Install the SDK The SDK provides PDA derivation helpers, TypeScript types, the p"
+  },
+  {
+    "title": "Architecture",
+    "href": "/documentation/overview/architecture",
+    "section": "Overview",
+    "body": "import { DocsSystemArchitectureDiagram } from \"../../components/WorkflowEmbeds\"; Architecture <DocsSystemArchitectureDiagram /> -- Packages Package | Role | Open Source | ---------|------|-------------| carnot-frontend | Vite/React SPA — price grid UI, wallet integration, trade placement, docs | No "
+  },
+  {
+    "title": "Glossary",
+    "href": "/documentation/overview/glossary",
+    "section": "Overview",
+    "body": "Glossary Term | Definition | ------|------------| Band | A price range for a given market. A trade wins if the settlement candle close lands inside the band. | Batch | A 1-minute window of settled orders assembled by the Worker and sent to the keeper for ZK proof generation. | Batch Receipt | On-cha"
+  },
+  {
+    "title": "How It Works",
+    "href": "/documentation/overview/how-it-works",
+    "section": "Overview",
+    "body": "import { DocsSettlementFlowDiagram } from \"../../components/WorkflowEmbeds\"; How It Works <DocsSettlementFlowDiagram /> -- Phase 1 — Trade Placement Every 250 ms the backend emits a signed price grid via Socket.IO (gridUpdate). Each cell carries an HMAC-SHA256 gridSignature committing the band, wind"
+  },
+  {
+    "title": "What is Carnot",
+    "href": "/documentation/overview/what-is-carnot",
+    "section": "Overview",
+    "body": "What is Carnot Carnot is a permissionless, ZK-verified prediction market on Solana. You pick a price band, bet on whether the settlement candle closes inside it within a 5-second window, and get your result in under 10 seconds. Every batch of settled orders is committed on-chain as a Groth16 ZK proo"
+  },
+  {
+    "title": "Instructions Reference",
+    "href": "/documentation/smart-contracts/instructions",
+    "section": "Smart Contracts",
+    "body": "Instructions Reference All instructions are Anchor-IDL-compatible, callable via the Anchor TypeScript client or any Solana transaction builder. Summary Instruction | Caller | Description | -------------|--------|-------------| admininit | Admin | Initialize global state — keeper pubkey, fee rates, b"
+  },
+  {
+    "title": "Program Overview",
+    "href": "/documentation/smart-contracts/program-overview",
+    "section": "Smart Contracts",
+    "body": "Program Overview carnotengine is a Solana program built with Anchor 0.32.0 in Rust. It handles fund custody, ZK proof verification, batch settlement, and payout distribution. Program Identity Property | Value | ----------|-------| Program Name | carnotengine | Program ID | carCrmy6qN8tRgvUp9v6JrfUux"
+  },
+  {
+    "title": "Settlement Math",
+    "href": "/documentation/smart-contracts/settlement-math",
+    "section": "Smart Contracts",
+    "body": "Settlement Math These formulas are verified by ZK constraints (C4, D1, D3, D4) and re-enforced by the Solana program. Live parameters: keeperfeebps = 25, protocolfeebps = 100. Gross Payout (Per Winner) multiplierbps = 10000 means 1× (return of stake only). multiplierbps = 15000 means 1.5×. Bounded t"
+  },
+  {
+    "title": "Aggregator Circuit",
+    "href": "/documentation/zk-settlement/aggregator",
+    "section": "Zk Settlement",
+    "body": "Aggregator Circuit For large batches, running the full settlement circuit over thousands of trades in a single prover invocation would take too long. Carnot solves this with chunked aggregation: split the batch into chunks, prove each chunk in parallel, then combine into a single final proof. How It"
+  },
+  {
+    "title": "Circuit Constraints",
+    "href": "/documentation/zk-settlement/circuit-constraints",
+    "section": "Zk Settlement",
+    "body": "import { DocsOracleBindingDiagram } from \"../../components/WorkflowEmbeds\"; Circuit Constraints The Carnot settlement circuit verifies 28 constraints across 6 groups (A–F). Any single failure aborts proof generation — the Solana program will reject the settlement transaction. Circuit source: carnot-"
+  },
+  {
+    "title": "On-Chain Verification",
+    "href": "/documentation/zk-settlement/on-chain-verification",
+    "section": "Zk Settlement",
+    "body": "On-Chain Verification After the keeper generates a Groth16 proof, it submits it via verifyandsettle on carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS. This instruction atomically verifies the proof and finalizes the batch. Every step is atomic — any failure reverts with no state change. Execution Steps"
+  },
+  {
+    "title": "ZK Settlement — Overview",
+    "href": "/documentation/zk-settlement/overview",
+    "section": "Zk Settlement",
+    "body": "import { DocsSettlementPipelineDiagram } from \"../../components/WorkflowEmbeds\"; ZK Settlement — Overview Every settlement batch is verified by a Groth16 ZK proof before any funds move. The operator cannot produce a valid proof for an incorrectly computed batch — the math makes it impossible. Why ZK"
+  },
+  {
+    "title": "SP1 zkVM & Groth16",
+    "href": "/documentation/zk-settlement/sp1-groth16",
+    "section": "Zk Settlement",
+    "body": "SP1 zkVM & Groth16 Carnot's settlement proofs are generated by SP1 (Succinct Labs), a general-purpose ZK virtual machine. How SP1 Works SP1 compiles Rust to RISC-V and proves, cryptographically, that a specific execution trace was carried out correctly. The circuit is just a normal Rust program — au"
+  }
+]

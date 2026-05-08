@@ -1,0 +1,73 @@
+# WebSocket Events
+
+Carnot uses Socket.IO v4 over WSS. Price ticks, order results, and the price grid are all pushed — no polling needed.
+
+## Connection
+
+First get a `wssKey` via `GET /api/auth/wss-key` (requires JWT), then:
+
+```typescript
+import { io } from "socket.io-client";
+
+const socket = io("wss://api.carnot.finance", {
+  auth: { token: wssKey },
+  transports: ["websocket"],
+});
+```
+
+## Events
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `newPrice` | Server → Client | `{ marketId, price, ts }` |
+| `orderResult` | Server → Client | `{ orderId, outcome, payout }` |
+| `gridUpdate` | Server → Client | `{ cells: Cell[] }` |
+
+---
+
+## `newPrice`
+
+Emitted on every Binance Futures aggTrade tick. Can be several times per second per market.
+
+```typescript
+socket.on("newPrice", (data: { marketId: string; price: number; ts: number }) => {
+  console.log(`${data.marketId}: $${data.price} at ${data.ts}`);
+});
+```
+
+---
+
+## `orderResult`
+
+Emitted when your order reaches WIN or LOSS, at `window_end` when the settlement candle is evaluated.
+
+```typescript
+socket.on("orderResult", (data: { orderId: string; outcome: "WIN" | "LOSS"; payout: string }) => {
+  if (data.outcome === "WIN") console.log(`Payout: ${Number(data.payout) / 1e6} USDT`);
+});
+```
+
+`payout` is in micro-USDT. This is an off-chain balance credit — to claim on-chain USDT you must submit a Merkle proof via `distribute_winnings` after batch settlement.
+
+---
+
+## `gridUpdate`
+
+Emitted every 250 ms per market with the current signed price grid.
+
+```typescript
+interface Cell {
+  marketId: string; gridTs: number; startTs: number; endTs: number;
+  lowerPrice: string; upperPrice: string; rewardRate: string; gridSignature: string;
+}
+
+socket.on("gridUpdate", (data: { cells: Cell[] }) => {
+  // Verify gridSignature before using rewardRate
+});
+```
+
+`gridSignature` is HMAC-SHA256 over all cell fields. Always verify before submitting an order — a tampered `rewardRate` will fail server-side validation.
+
+---
+
+Socket.IO handles reconnection automatically. If the connection drops mid-trade, the order stays in the backend's evaluation bucket and is settled normally on the next tick.

@@ -1,0 +1,41 @@
+import { DocsSettlementPipelineDiagram } from "../../components/WorkflowEmbeds";
+
+# ZK Settlement — Overview
+
+Every settlement batch is verified by a Groth16 ZK proof before any funds move. The operator cannot produce a valid proof for an incorrectly computed batch — the math makes it impossible.
+
+## Why ZK Proofs
+
+Without a cryptographic guarantee, the operator could:
+- Flip a winning trade to a losing outcome
+- Inflate payouts for favored traders
+- Submit a settlement with fabricated price data
+- Undercount pool liability
+
+A ZK proof eliminates all of these. The operator must prove it executed a specific, publicly auditable Rust program — the Carnot circuit — satisfying all 28 constraints. Any invalid input causes proof generation to abort.
+
+## Pipeline
+
+<DocsSettlementPipelineDiagram />
+
+1. **Batch assembly** — Worker collects all `place_trade` events, 5-second OHLC candles, and 3 Pyth checkpoints for the 1-minute window.
+2. **Circuit execution** — SP1 zkVM runs the Carnot Rust circuit against the batch inputs. Any failed constraint aborts proof generation.
+3. **Proof generation** — SP1 wraps the execution trace into a Groth16 SNARK: `proof_a` (64 bytes), `proof_b` (128 bytes), `proof_c` (64 bytes), plus a 32-byte `public_outputs_hash`.
+4. **Keeper submission** — Keeper calls `verify_and_settle` with the proof and 20 settlement fields.
+5. **On-chain verification** — Solana program runs BN254 pairing check. Also recomputes `public_outputs_hash` from the 20 supplied parameters and checks it matches the proof's public input.
+6. **State finalization** — `batch_receipt` PDA created (`settled=true`, Merkle root), pool balance updated, nullifier stamped.
+
+## What the Proof Guarantees
+
+A passing Groth16 verification proves **every constraint was satisfied for the exact inputs committed in `public_outputs_hash`**:
+
+- Trade commitment hashes match on-chain records; multipliers in-bounds; windows inside batch
+- OHLC candles are internally consistent, chronologically ordered, within 200 bps of 3 Pyth checkpoints
+- Win/loss determined correctly per settlement candle close; payouts computed as `stake × multiplier / 10_000`
+- Pool balance transition satisfies the conservation identity; fees computed correctly
+- Nullifier hash is unique to this batch (no replay possible)
+- `payouts_commitment` is the correct Merkle root over all payout leaves
+
+## Open Source
+
+The full circuit lives in `carnot-circuit/`. Anyone can read the Rust code and reproduce any proof. The SP1 proving system is also open source.

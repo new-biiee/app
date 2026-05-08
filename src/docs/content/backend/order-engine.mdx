@@ -1,0 +1,56 @@
+# Order Engine
+
+The order engine validates incoming bets, tracks them against the live price stream, and settles them within milliseconds of the window closing.
+
+## Order Submission Validation
+
+User calls `POST /api/orders` with the full cell object (including `gridSignature`) and a stake amount. Four checks must pass:
+
+**1. HMAC signature check**
+Re-derives `HMAC-SHA256(marketId ‖ gridTs ‖ startTs ‖ endTs ‖ lowerPrice ‖ upperPrice ‖ rewardRate, serverKey)` and compares against `gridSignature`. Any mismatch → 400. Prevents users from forging cells with inflated reward rates.
+
+**2. Balance check**
+User's `free` balance must cover the stake. On acceptance, stake moves from `free` to `locked`.
+
+**3. Rate limiting**
+Token bucket per wallet (keyed in Redis). Exceeding the rate → 429. Continuous refill, not bulk resets.
+
+**4. One-cell-per-user**
+A user can't place two active bets on the same cell (same `marketId`, `gridTs`, `lowerPrice`, `upperPrice`). Duplicate → 409. Prevents stacking identical positions.
+
+## Storage
+
+On passing validation:
+- Order written to PostgreSQL with status `PENDING`
+- Order added to in-memory **tick-evaluation bucket**
+
+Both writes are atomic — if the DB write fails, the order never enters the bucket.
+
+## 100ms Tick Evaluation Loop
+
+```
+every 100ms:
+  for each PENDING order:
+    if now >= order.endTs:
+      candle = last OHLC close with close_ts <= order.endTs
+      if candle.close >= order.lowerPrice AND candle.close < order.upperPrice:
+        outcome = WIN
+      else:
+        outcome = LOSS
+      settle(order, outcome)
+```
+
+The settlement candle rule is identical in both the backend evaluator and the ZK circuit — they cannot produce contradictory results.
+
+## On Settlement
+
+1. DB record updated to `SETTLED` with outcome and gross payout
+2. Ledger updated atomically: WIN → `locked` stake released, payout credited; LOSS → `locked` stake transferred to pool
+3. Order removed from in-memory bucket
+4. Socket.IO `orderResult` event emitted: `{ orderId, outcome, payout }`
+
+Settled orders are picked up by the Worker in the next 1-minute batch assembly.
+
+## Security Note
+
+The HMAC cell signature ensures reward rates are set exclusively by the backend pricing model. If the backend is compromised, the on-chain ZK verifier acts as a second line of defense — it re-derives outcomes from OHLC candles independently, so fraudulent payouts can't be committed on-chain without a valid proof.
