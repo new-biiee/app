@@ -35,9 +35,8 @@ import {
 let cachedIdl: any = null;
 async function getIdl() {
   if (!cachedIdl) {
-    const mod =
-      await import("@carnot-zk/sdk/idl");
-    cachedIdl = mod.default;
+    const mod = await import("@carnot-zk/sdk/idl");
+    cachedIdl = mod.carnotIdl;
   }
   return cachedIdl;
 }
