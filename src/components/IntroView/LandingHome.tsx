@@ -23,11 +23,11 @@ const MONO_FONT = '"Space Mono", "JetBrains Mono", monospace';
 
 const HERO_PREFIX_1 = "Experience the thrill of 5-second predictions trading through";
 const HERO_POINTS = [
-  "Compressed Markets",
-  "Arithmetically Powered Algorithms",
-  "Root Anchored Commitments",
-  "Natively Owned Wallets",
-  "Tap-trading Platform",
+  "Compressed ZK Aggregation",
+  "Arithmetically Constant Logic",
+  "Root Anchored Finality",
+  "Natively Owned Vaults",
+  "Tap-trading Ignition Engine",
 ];
 
 const HeroMirrorStripes: React.FC<{ ctaHover: boolean }> = ({ ctaHover }) => {
