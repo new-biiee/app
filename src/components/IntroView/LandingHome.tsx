@@ -79,6 +79,7 @@ const HeroMirrorStripes: React.FC<{ ctaHover: boolean }> = ({ ctaHover }) => {
           strokeLinecap="round"
           strokeLinejoin="round"
           filter="url(#stripeBloom)"
+          className="hidden md:block"
           animate={{
             opacity: ctaHover ? 0.94 : 0.78,
             strokeWidth: ctaHover ? 52 : 44,
@@ -93,6 +94,7 @@ const HeroMirrorStripes: React.FC<{ ctaHover: boolean }> = ({ ctaHover }) => {
           strokeLinecap="round"
           strokeLinejoin="round"
           filter="url(#stripeBloom)"
+          className="hidden md:block"
           animate={{
             opacity: ctaHover ? 0.94 : 0.78,
             strokeWidth: ctaHover ? 52 : 44,
@@ -107,6 +109,7 @@ const HeroMirrorStripes: React.FC<{ ctaHover: boolean }> = ({ ctaHover }) => {
           strokeWidth="22"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="hidden md:block"
           animate={{
             opacity: ctaHover ? 0.76 : 0.44,
             strokeWidth: ctaHover ? 28 : 22,
@@ -120,6 +123,7 @@ const HeroMirrorStripes: React.FC<{ ctaHover: boolean }> = ({ ctaHover }) => {
           strokeWidth="22"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="hidden md:block"
           animate={{
             opacity: ctaHover ? 0.76 : 0.44,
             strokeWidth: ctaHover ? 28 : 22,
@@ -166,7 +170,7 @@ export const LandingHome: React.FC = () => {
 
   return (
     <section
-      className="relative min-h-screen flex items-center justify-center px-6 md:px-10"
+      className="relative min-h-[90vh] md:min-h-screen flex items-center justify-center px-6 md:px-10"
     >
       <HeroMirrorStripes ctaHover={heroCtaHover} />
       <div className="relative z-10 text-center max-w-4xl">
@@ -174,7 +178,7 @@ export const LandingHome: React.FC = () => {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 190, damping: 18 }}
-          className="text-base md:text-xl font-semibold tracking-[0.02em] text-white/90"
+          className="text-sm md:text-xl font-semibold tracking-[0.02em] text-white/90"
         >
           <span
             className="bg-clip-text text-transparent"
@@ -192,14 +196,14 @@ export const LandingHome: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 190, damping: 18, delay: 0.05 }}
-          className="mt-3 text-6xl md:text-8xl font-black tracking-[-0.08em]"
+          className="mt-2 md:mt-3 text-5xl md:text-8xl font-black tracking-[-0.08em]"
         >
           CARNOT
         </m.h1>
-        <div className="mt-8 flex items-center justify-center gap-6">
-          <div className="h-1 w-16 bg-gradient-to-r from-[#3ef4ff]/0 to-[#3ef4ff] rounded-full" />
-          <div>World's Most Advanced & Secure Tap Trading Platform</div>
-          <div className="h-1 w-16 bg-gradient-to-r from-[#3ef4ff] to-[#3ef4ff]/0 rounded-full" />
+        <div className="mt-6 md:mt-8 flex items-center justify-center gap-4 md:gap-6">
+          <div className="hidden md:block h-1 w-16 bg-gradient-to-r from-[#3ef4ff]/0 to-[#3ef4ff] rounded-full" />
+          <div className="text-xs md:text-base font-medium px-4">World's Most Advanced & Secure Tap Trading Platform</div>
+          <div className="hidden md:block h-1 w-16 bg-gradient-to-r from-[#3ef4ff] to-[#3ef4ff]/0 rounded-full" />
         </div>
         <m.p
           initial={{ opacity: 0, y: 16 }}
@@ -210,16 +214,11 @@ export const LandingHome: React.FC = () => {
             damping: 18,
             delay: 0.08,
           }}
-          className="mt-4 text-sm md:text-base text-white/80 leading-relaxed flex flex-col items-center md:items-center text-center md:text-left gap-y-1"
+          className="mt-4 text-sm md:text-base text-white/80 leading-relaxed flex flex-col items-center justify-center text-center gap-y-1"
           style={{ fontFamily: MONO_FONT }}
         >
           <span className="shrink-0">{HERO_PREFIX_1}</span>
-          <span className="inline-grid grid-cols-1 grid-rows-1 justify-items-start">
-            {/* Invisible placeholder of the longest string to reserve layout space */}
-            {/* <span className="invisible row-start-1 col-start-1 h-0 pointer-events-none px-1 font-bold whitespace-nowrap">
-              {HERO_POINTS.reduce((a, b) => a.length > b.length ? a : b)}
-            </span> */}
-
+          <span className="inline-grid grid-cols-1 grid-rows-1 justify-items-center">
             <AnimatePresence mode="wait">
               <m.span
                 key={pointIndex}
@@ -245,7 +244,7 @@ export const LandingHome: React.FC = () => {
             damping: 18,
             delay: 0.16,
           }}
-          className="mt-10"
+          className="mt-6 md:mt-10"
         >
           <Link
             to="/trade"
@@ -286,7 +285,7 @@ export const LandingHome: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 170, damping: 20, delay: 0.22 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs md:text-sm text-white/80"
+          className="mt-8 md:mt-10 flex flex-wrap items-center justify-center gap-3 text-xs md:text-sm text-white/80"
           style={{ fontFamily: MONO_FONT }}
         >
           <div className="inline-flex items-center gap-2 px-2">
@@ -306,5 +305,5 @@ export const LandingHome: React.FC = () => {
         </m.div>
       </div>
     </section>
-  )
+  );
 };

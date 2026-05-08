@@ -41,48 +41,48 @@ export function UpcomingPage() {
         }}
       />
 
-      <div className="relative z-10 w-full max-w-7xl px-8 lg:px-12 py-8 flex flex-col min-h-screen">
+      <div className="relative z-10 w-full max-w-7xl px-4 sm:px-8 lg:px-12 py-6 sm:py-8 flex flex-col min-h-screen">
         {/* Top Navigation Row */}
-        <div className="flex justify-between items-center w-full mb-5 lg:mb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-center w-full gap-4 mb-8 lg:mb-10">
           <Link
             to="/documentation/overview/what-is-carnot"
-            className="flex items-center text-gray-400 hover:text-white transition-all group"
+            className="flex items-center text-gray-400 hover:text-white transition-all group self-start sm:self-auto"
           >
             <div className="p-2 rounded-lg bg-white/5 border border-white/10 group-hover:bg-white/10 group-hover:border-white/20 transition-all mr-3">
               <ArrowLeft className="h-4 w-4" />
             </div>
-            <span className="text-sm font-bold tracking-widest uppercase">Go to Docs</span>
+            <span className="text-xs sm:text-sm font-bold tracking-widest uppercase">Go to Docs</span>
           </Link>
           <Link
             to="/trade"
-            className="px-8 py-3 bg-[#3ef4ff] text-black text-xs font-black uppercase tracking-[0.2em] rounded-xl hover:bg-[#3ce5ee] transition-all shadow-[0_0_20px_rgba(62,244,255,0.4)]"
+            className="hidden sm:block w-full sm:w-auto text-center px-8 py-3 bg-[#3ef4ff] text-black text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] rounded-xl hover:bg-[#3ce5ee] transition-all shadow-[0_0_20px_rgba(62,244,255,0.4)]"
           >
             Continue Trading
           </Link>
         </div>
 
         {/* Main Split Layout */}
-        <div className="flex-1 flex flex-col lg:flex-row items-center justify-between gap-16 lg:gap-24">
+        <div className="flex-1 flex flex-col lg:flex-row items-center justify-between gap-12 sm:gap-16 lg:gap-24">
           
           {/* Left Column: Integrated Hero Content */}
-          <div className="flex-1 max-w-xl text-center lg:text-left relative">
+          <div className="flex-1 w-full lg:max-w-xl text-center lg:text-left relative">
             <div className="absolute -left-12 -top-12 w-64 h-64 bg-[#3ef4ff]/10 rounded-full blur-3xl pointer-events-none"></div>
             
-            <div className="flex flex-col items-center lg:items-start gap-5 relative z-10">
+            <div className="flex flex-col items-center lg:items-start gap-4 sm:gap-5 relative z-10">
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
                 className="relative"
               >
                 <div 
-                  className="p-6 rounded-full flex items-center justify-center transition-all"
+                  className="p-5 sm:p-6 rounded-full flex items-center justify-center transition-all"
                   style={{
                     background: `rgba(62, 244, 255, 0.08)`,
                     border: `2px solid ${BRAND_ACCENT}`,
                     boxShadow: `0 0 25px rgba(62, 244, 255, 0.3)`,
                   }}
                 >
-                  <Gift className={`h-12 w-12 text-[${BRAND_ACCENT}]`} />
+                  <Gift className={`h-6 w-6 sm:h-12 sm:w-12 text-[${BRAND_ACCENT}]`} />
                 </div>
                 <div className="absolute -right-2 -top-2 px-2 py-0.5 rounded bg-[#3ef4ff] text-[8px] font-black text-black uppercase tracking-tighter">
                   features
@@ -90,11 +90,11 @@ export function UpcomingPage() {
               </motion.div>
 
               <div>
-                <h1 className="text-3xl md:text-4xl font-black text-white mb-4 tracking-tighter uppercase italic leading-tight">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 sm:mb-4 tracking-tighter uppercase italic leading-tight">
                   UPCOMING <br />
                   <span style={{ color: BRAND_ACCENT }} className="not-italic">RELEASES</span>
                 </h1>
-                <p className="text-md text-[#7AA8B5] font-medium tracking-wide leading-relaxed">
+                <p className="text-sm sm:text-md text-[#7AA8B5] font-medium tracking-wide leading-relaxed max-w-lg mx-auto lg:mx-0">
                   We're building the next evolution of derivatives trading. 
                   Stay tuned for game-changing features coming to the Carnot ecosystem.
                 </p>
@@ -104,7 +104,7 @@ export function UpcomingPage() {
 
           {/* Right Column: Ribbon Cards */}
           <motion.div
-            className="flex-1 w-full max-w-2xl space-y-6"
+            className="flex-1 w-full lg:max-w-2xl space-y-8 sm:space-y-6 pb-12 lg:pb-0"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -112,23 +112,25 @@ export function UpcomingPage() {
             {/* Feature 1 */}
             <motion.div variants={cardVariants} className="relative group cursor-default">
               <div
-                className="relative p-8 bg-gradient-to-r from-gray-900/90 to-black/60 backdrop-blur-md transition-all group-hover:translate-x-2"
+                className="relative p-6 sm:p-8 bg-gradient-to-r from-gray-900/90 to-black/60 backdrop-blur-md transition-all group-hover:translate-x-2"
                 style={{
-                  clipPath: "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  clipPath: window.innerWidth < 640 ? "none" : "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  borderRadius: window.innerWidth < 640 ? "16px" : "0",
                   borderRight: `1px solid ${BRAND_ACCENT}33`,
                   borderTop: `1px solid ${BRAND_ACCENT}33`,
                   borderBottom: `1px solid ${BRAND_ACCENT}33`,
+                  borderLeft: window.innerWidth < 640 ? `1px solid ${BRAND_ACCENT}33` : "none",
                 }}
               >
-                <div className="flex items-center gap-6 pl-12">
-                  <div className="shrink-0 p-3 rounded-xl bg-[#3ef4ff]11 border border-[#3ef4ff]33 text-[#3ef4ff]">
-                    <TrendingUp className="h-6 w-6" />
+                <div className="flex flex-row items-center gap-4 sm:gap-6 sm:pl-12">
+                  <div className="shrink-0 p-2.5 sm:p-3 rounded-xl bg-[#3ef4ff]11 border border-[#3ef4ff]33 text-[#3ef4ff]">
+                    <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-white mb-1 uppercase tracking-wider group-hover:text-[#3ef4ff] transition-colors">
+                    <h2 className="text-base sm:text-lg font-black text-white mb-0.5 sm:mb-1 uppercase tracking-wider group-hover:text-[#3ef4ff] transition-colors text-left">
                       Hyper-Dynamic Markets
                     </h2>
-                    <p className="text-[#7AA8B5] text-[13px] leading-relaxed">
+                    <p className="text-[#7AA8B5] text-[11px] sm:text-[13px] leading-relaxed text-left">
                       Expanding to JUP/PUMP, memecoins, and RWA derivatives. Unprecedented liquidity for the next generation.
                     </p>
                   </div>
@@ -139,23 +141,25 @@ export function UpcomingPage() {
             {/* Feature 2 */}
             <motion.div variants={cardVariants} className="relative group cursor-default">
               <div
-                className="relative p-8 bg-gradient-to-r from-gray-900/90 to-black/60 backdrop-blur-md transition-all group-hover:translate-x-2"
+                className="relative p-5 sm:p-8 bg-gradient-to-r from-gray-900/90 to-black/60 backdrop-blur-md transition-all group-hover:translate-x-2"
                 style={{
-                  clipPath: "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  clipPath: window.innerWidth < 640 ? "none" : "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  borderRadius: window.innerWidth < 640 ? "16px" : "0",
                   borderRight: "1px solid rgba(168, 85, 247, 0.33)",
                   borderTop: "1px solid rgba(168, 85, 247, 0.33)",
                   borderBottom: "1px solid rgba(168, 85, 247, 0.33)",
+                  borderLeft: window.innerWidth < 640 ? "1px solid rgba(168, 85, 247, 0.33)" : "none",
                 }}
               >
-                <div className="flex items-center gap-6 pl-12">
-                  <div className="shrink-0 p-3 rounded-xl bg-purple-500/11 border border-purple-500/33 text-purple-400">
-                    <Users className="h-6 w-6" />
+                <div className="flex flex-row items-center gap-4 sm:gap-6 sm:pl-12">
+                  <div className="shrink-0 p-2.5 sm:p-3 rounded-xl bg-purple-500/11 border border-purple-500/33 text-purple-400">
+                    <Users className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-white mb-1 uppercase tracking-wider group-hover:text-purple-400 transition-colors">
+                    <h2 className="text-base sm:text-lg font-black text-white mb-0.5 sm:mb-1 uppercase tracking-wider group-hover:text-purple-400 transition-colors text-left">
                       Competitive Social Trading
                     </h2>
-                    <p className="text-[#7AA8B5] text-[13px] leading-relaxed">
+                    <p className="text-[#7AA8B5] text-[11px] sm:text-[13px] leading-relaxed text-left">
                       Compete for value extraction in a community-driven ecosystem. Leverage collective intelligence.
                     </p>
                   </div>
@@ -166,23 +170,25 @@ export function UpcomingPage() {
             {/* Feature 3 */}
             <motion.div variants={cardVariants} className="relative group cursor-default">
               <div
-                className="relative p-8 bg-gradient-to-r from-gray-900/90 to-black/40 backdrop-blur-md transition-all group-hover:translate-x-2"
+                className="relative p-5 sm:p-8 bg-gradient-to-r from-gray-900/90 to-black/40 backdrop-blur-md transition-all group-hover:translate-x-2"
                 style={{
-                  clipPath: "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  clipPath: window.innerWidth < 640 ? "none" : "polygon(40px 0, 100% 0, 100% 100%, 40px 100%, 0 50%)",
+                  borderRadius: window.innerWidth < 640 ? "16px" : "0",
                   borderRight: "1px solid rgba(236, 72, 153, 0.33)",
                   borderTop: "1px solid rgba(236, 72, 153, 0.33)",
                   borderBottom: "1px solid rgba(236, 72, 153, 0.33)",
+                  borderLeft: window.innerWidth < 640 ? "1px solid rgba(236, 72, 153, 0.33)" : "none",
                 }}
               >
-                <div className="flex items-center gap-6 pl-12">
-                  <div className="shrink-0 p-3 rounded-xl bg-pink-500/11 border border-pink-500/33 text-pink-400">
-                    <GitFork className="h-6 w-6" />
+                <div className="flex flex-row items-center gap-4 sm:gap-6 sm:pl-12">
+                  <div className="shrink-0 p-2.5 sm:p-3 rounded-xl bg-pink-500/11 border border-pink-500/33 text-pink-400">
+                    <GitFork className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-white mb-1 uppercase tracking-wider group-hover:text-pink-400 transition-colors">
+                    <h2 className="text-base sm:text-lg font-black text-white mb-0.5 sm:mb-1 uppercase tracking-wider group-hover:text-pink-400 transition-colors text-left">
                       Unified Open-Source Engine
                     </h2>
-                    <p className="text-[#7AA8B5] text-[13px] leading-relaxed">
+                    <p className="text-[#7AA8B5] text-[11px] sm:text-[13px] leading-relaxed text-left">
                       High-frequency risk and settlement engine for derivatives. Transparent, efficient, and built for scale.
                     </p>
                   </div>

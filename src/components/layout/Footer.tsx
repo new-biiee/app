@@ -79,7 +79,7 @@ export const Footer: React.FC = () => {
     }, []);
     return (
         <footer
-            className="max-w-7xl mx-auto px-6 md:px-10 pt-16 pb-10 border-t"
+            className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:pt-16 md:pb-10 border-t"
             style={{ borderColor: "rgba(255,255,255,0.12)" }}
         >
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-15">

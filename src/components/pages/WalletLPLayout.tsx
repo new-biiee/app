@@ -38,9 +38,9 @@ export const WalletLPLayout: React.FC = () => {
 
   return (
     <div className="relative h-full w-full overflow-hidden flex flex-col">
-      <div className="absolute top-0 left-0 z-40">
+      <div className="absolute top-0 left-0 z-40 p-2 sm:p-0">
         <motion.div
-          className="inline-flex rounded-2xl border p-1 backdrop-blur-md"
+          className="inline-flex rounded-xl sm:rounded-2xl border p-0.5 sm:p-1 backdrop-blur-md"
           style={{
             borderColor: "rgba(62, 244, 255, 0.16)",
           }}
@@ -53,7 +53,7 @@ export const WalletLPLayout: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className="relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+              className="relative flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-xs font-bold sm:font-semibold transition-colors uppercase tracking-wider"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
               style={{
@@ -66,7 +66,7 @@ export const WalletLPLayout: React.FC = () => {
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="wallet-lp-mode-pill"
-                  className="absolute inset-0 rounded-xl"
+                  className="absolute inset-0 rounded-lg sm:rounded-xl"
                   style={{
                     background: "rgba(62, 244, 255, 0.1)",
                     border: "1px solid rgba(62, 244, 255, 0.18)",
@@ -82,7 +82,7 @@ export const WalletLPLayout: React.FC = () => {
       </div>
 
       {/* Offset below floating tabs (same pattern as trading Pool / Social) */}
-      <div className="flex flex-1 min-h-0 flex-col pt-15 sm:pt-16">
+      <div className="flex flex-1 min-h-0 flex-col pt-12 sm:pt-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

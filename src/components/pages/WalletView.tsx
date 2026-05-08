@@ -321,56 +321,50 @@ export const WalletView: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
       {/* Page heading */}
-      <div className="flex justify-between">
-        <div
-          className="flex items-center gap-3 px-4 sm:px-5 pt-4 pb-3 border-b"
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b shrink-0 bg-[#030507]/50 backdrop-blur-md z-20" 
           style={{ borderColor: "rgba(62, 244, 255, 0.12)" }}
         >
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ color: "#FFFFFF" }}
-          >
+          className="text-lg sm:text-2xl font-extrabold tracking-tight text-white truncate">
             Trade Balance
           </h1>
-          <span
-            className="text-xs px-2.5 py-1 font-semibold uppercase tracking-wider backdrop-blur-md"
-            style={{
-              background: "rgba(62, 244, 255, 0.12)",
-              color: BRAND_ACCENT,
-              border: `1px solid ${BRAND_ACCENT}33`,
-              borderRadius: "6px",
-            }}
-          >
-            Devnet
-          </span>
+          <span className="text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 font-semibold uppercase tracking-wider backdrop-blur-md rounded-md shrink-0" 
+            style={{ 
+              background: "rgba(62, 244, 255, 0.12)", 
+              color: BRAND_ACCENT, 
+              border: `1px solid ${BRAND_ACCENT}33` 
+            }}>
+              Devnet
+            </span>
         </div>
-        <div className="flex items-end mr-4 mb-1">
           <button
             onClick={() => {
               fetchUsdtBalance();
               refetchOffChainBalance();
             }}
-            disabled={isLoadingBalance}
-            className="flex items-center gap-2 text-xs font-bold transition-all px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white disabled:opacity-50"
-          >
+          disabled={isLoadingBalance}
+          className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-bold transition-all px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white disabled:opacity-50 shrink-0"
+        >
             <RefreshCw
               size={14}
               className={isLoadingBalance ? "animate-spin" : ""}
             />
+          <span>
             Refresh
+          </span>
           </button>
-        </div>
       </div>
 
       {/* Main content - scrollable */}
-      <div className="flex-1 overflow-y-auto pb-10">
+      <div className="flex-1 overflow-y-auto pb-10 overflow-x-hidden">
         <div className="p-2 sm:p-4">
           <div className="flex flex-col gap-8">
             {/* Top Row - Balance Cards side-by-side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {/* Wallet USDT Card (Credit Card Style) */}
               <div
-                className="p-6 rounded-2xl backdrop-blur-xl relative h-62 flex flex-col justify-between transition-all group"
+                className="p-4 sm:p-6 rounded-2xl backdrop-blur-xl relative h-56 sm:h-62 flex flex-col justify-between transition-all group"
                 style={{
                   background: `linear-gradient(135deg, ${BRAND_ACCENT}22 0%, rgba(0,0,0,0.4) 100%)`,
                   border: `1px solid ${BRAND_ACCENT}33`,
@@ -407,23 +401,20 @@ export const WalletView: React.FC = () => {
                 <div className="flex justify-between items-start relative z-10">
                   <div className="flex flex-col">
                     <p
-                      className="text-[18px] font-bold uppercase tracking-[0.2em] mb-1 opacity-60"
+                      className="text-sm sm:text-[18px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 opacity-60"
                       style={{ color: BRAND_ACCENT }}
                     >
                       Wallet USDT Balance
                     </p>
                     <div className="flex items-center gap-2">
                       <span
-                        className="text-xs font-semibold opacity-80"
+                        className="text-[10px] sm:text-xs font-semibold opacity-80"
                         style={{ color: "#FFFFFF" }}
                       >
                         USDT (Devnet)
                       </span>
                     </div>
                   </div>
-                  {/* <div className="opacity-40 group-hover:opacity-100 transition-opacity">
-                    <div className="w-10 h-7 rounded bg-white/10 border border-white/20 backdrop-blur-sm" />
-                  </div> */}
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center"
                     style={{
@@ -440,7 +431,7 @@ export const WalletView: React.FC = () => {
 
                 <div className="relative z-10">
                   <p
-                    className="text-3xl font-black font-mono tracking-tight"
+                    className="text-2xl sm:text-3xl font-black font-mono tracking-tight"
                     style={{ color: "#FFFFFF" }}
                   >
                     {isLoadingBalance
@@ -456,14 +447,14 @@ export const WalletView: React.FC = () => {
                 <div className="flex justify-between items-end relative z-10">
                   <div className="flex flex-col gap-1">
                     <p
-                      className="text-[9px] font-bold uppercase tracking-widest opacity-40"
+                      className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest opacity-40"
                       style={{ color: "#FFFFFF" }}
                     >
                       Wallet Address
                     </p>
                     <div className="flex items-center gap-2 bg-black/20 px-2 py-1 rounded-lg border border-white/5">
                       <p
-                        className="text-xs font-mono opacity-80"
+                        className="text-[10px] sm:text-xs font-mono opacity-80"
                         style={{ color: "#FFFFFF" }}
                       >
                         {formatAddress(publicKey?.toBase58() ?? null)}
@@ -478,7 +469,7 @@ export const WalletView: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-60">
-                    <span className="text-[10px] font-bold uppercase">
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase">
                       Perpetual
                     </span>
                   </div>
@@ -487,7 +478,7 @@ export const WalletView: React.FC = () => {
 
               {/* Protocol USDT Card */}
               <div
-                className="p-6 rounded-3xl backdrop-blur-xl relative h-62 flex flex-col justify-between transition-all group"
+                className="p-4 sm:p-6 rounded-3xl backdrop-blur-xl relative h-56 sm:h-62 flex flex-col justify-between transition-all group"
                 style={{
                   background: `linear-gradient(135deg, rgba(13, 34, 39, 0.8) 0%, rgba(15, 26, 30, 0.9) 100%)`,
                   border: `1px solid ${BRAND_ACCENT}15`,
@@ -517,7 +508,7 @@ export const WalletView: React.FC = () => {
                 <div className="flex justify-between items-start relative z-10">
                   <div className="flex flex-col">
                     <p
-                      className="text-[18px] font-bold uppercase tracking-[0.2em] mb-1 opacity-60"
+                      className="text-sm sm:text-[18px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 opacity-60"
                       style={{ color: BRAND_ACCENT }}
                     >
                       Protocol Balance
@@ -541,7 +532,7 @@ export const WalletView: React.FC = () => {
 
                 <div className="relative z-10">
                   <p
-                    className="text-3xl font-black font-mono tracking-tight"
+                    className="text-2xl sm:text-3xl font-black font-mono tracking-tight"
                     style={{ color: "#FFFFFF" }}
                   >
                     {isLoadingBalance
@@ -553,7 +544,7 @@ export const WalletView: React.FC = () => {
                           })
                         : "0.00"}
                   </p>
-                  <p className="text-[10px] font-bold opacity-30 uppercase mt-1">
+                  <p className="text-[9px] sm:text-[10px] font-bold opacity-30 uppercase mt-1">
                     Staked Collateral
                   </p>
                 </div>
@@ -561,27 +552,27 @@ export const WalletView: React.FC = () => {
                 <div className="flex justify-between items-end relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-bold uppercase opacity-40">
+                      <span className="text-[7px] sm:text-[8px] font-bold uppercase opacity-40">
                         Security
                       </span>
-                      <span className="text-[10px] font-bold">ZK-Settled</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold">ZK-Settled</span>
                     </div>
                     <div className="h-6 w-px bg-white/10" />
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-bold uppercase opacity-40">
+                      <span className="text-[7px] sm:text-[8px] font-bold uppercase opacity-40">
                         Status
                       </span>
                       <span
-                        className="text-[10px] font-bold"
+                        className="text-[9px] sm:text-[10px] font-bold"
                         style={{ color: "#2EBD85" }}
                       >
                         Live
                       </span>
                     </div>
                   </div>
-                  <div className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10">
                     <BadgeDollarSign
-                      size={24}
+                      size={20}
                       className="opacity-80"
                       style={{ color: BRAND_ACCENT }}
                     />
@@ -617,19 +608,19 @@ export const WalletView: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex gap-8 justify-between">
+            <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 justify-between">
               <div
-                className="overflow-hidden flex flex-col w-[60%]"
+                className="overflow-hidden flex flex-col w-full lg:w-[60%]"
                 style={{
                   background: CARD_PRIMARY,
                   borderLeft: `3px solid ${BRAND_ACCENT}44`,
                   borderRadius: "16px",
-                  padding: "24px",
-                  marginLeft: "3px",
+                  padding: "20px sm:24px",
+                  marginLeft: "0",
                 }}
               >
                 {/* Content area */}
-                <div className="space-y-4 flex-1 flex flex-col justify-center">
+                <div className="space-y-4 flex-1 flex flex-col justify-center p-4">
                   {/* Form fields */}
                   {activeTab === "deposit" ? (
                     <div className="space-y-6">

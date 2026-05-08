@@ -8,6 +8,8 @@ import nacl from "tweetnacl";
 import { 
   ChevronDown,
   Wallet, 
+  Menu as MenuIcon,
+  X,
 } from "lucide-react";
 import { useGameStore } from "../../store/store";
 import {
@@ -396,6 +398,7 @@ export const Header: React.FC<{
   }, [socketConn, selectedMarketId]);
 
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const requestDevnetFaucet = async (
     walletAddress: string,
@@ -560,13 +563,14 @@ export const Header: React.FC<{
           }}
         />
 
-        <div className="relative z-10 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="relative z-10 flex items-center justify-between gap-1.5 sm:gap-3">
           <div className="relative">
             <Menu as="div">
-              <MenuButton className="flex items-center gap-2.5 px-3 py-2.5 rounded-md border transition-all text-xs font-black tracking-widest uppercase group" style={{ color: BRAND_ACCENT, borderColor: `${BRAND_ACCENT}33`, background: "rgba(255,255,255,0.03)" }}>
+              <MenuButton className="flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-md border transition-all text-[10px] sm:text-xs font-black tracking-widest uppercase group" style={{ color: BRAND_ACCENT, borderColor: `${BRAND_ACCENT}33`, background: "rgba(255,255,255,0.03)" }}>
                 {markets.find(m => m.id === selectedMarketId)?.icon}
-                <span className="ml-1"><span style={{"color":"white"}}>{selectedMarketLabel}</span> Market</span>
-                <ChevronDown size={14} className="ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
+                <span className="ml-1 hidden sm:inline"><span style={{"color":"white"}}>{selectedMarketLabel}</span> Market</span>
+                <span className="ml-1 sm:hidden text-white">{selectedMarketLabel.split("/")[0]}</span>
+                <ChevronDown size={12} className="ml-0.5 opacity-40 group-hover:opacity-100 transition-opacity" />
               </MenuButton>
               <MenuItems 
                 anchor="bottom start" 
@@ -588,17 +592,17 @@ export const Header: React.FC<{
             </Menu>
           </div>
  
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap justify-end">
             <div
-              className="h-11 px-4 rounded-md flex items-center gap-2.5 backdrop-blur-sm transition-all hover:shadow-lg hover:bg-white/10 cursor-pointer"
+              className="h-10 sm:h-11 px-2 sm:px-4 rounded-md flex items-center gap-1.5 sm:gap-2.5 backdrop-blur-sm transition-all hover:shadow-lg hover:bg-white/10 cursor-pointer"
             >
               <div className="flex flex-row">
-                <span className="text-[11px] tracking-[0.16em] font-bold text-[#7AA8B5] uppercase">{selectedMarketLabel.split("/")[0] ?? selectedMarketLabel}</span>
-                <span className="text-[11px] tracking-[0.16em] font-bold text-[#7AA8B5] mx-1">/</span>
-                <span className="text-[11px] tracking-[0.12em] font-semibold text-[#5F9BA6]">{selectedMarketLabel.split("/")[1] ?? "USDT"}</span>
+                <span className="text-[10px] sm:text-[11px] tracking-[0.1em] sm:tracking-[0.16em] font-bold text-[#7AA8B5] uppercase">{selectedMarketLabel.split("/")[0] ?? selectedMarketLabel}</span>
+                <span className="hidden sm:inline text-[11px] tracking-[0.16em] font-bold text-[#7AA8B5] mx-1">/</span>
+                <span className="hidden sm:inline text-[11px] tracking-[0.12em] font-semibold text-[#5F9BA6]">{selectedMarketLabel.split("/")[1] ?? "USDT"}</span>
               </div>
-              <div className="h-6 w-px" style={{ background: "rgba(62, 244, 255, 0.15)" }} />
-              <div className="flex items-center gap-1.5">
+              <div className="h-5 sm:h-6 w-px" style={{ background: "rgba(62, 244, 255, 0.15)" }} />
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <span className="text-xs sm:text-sm font-bold font-mono" style={{ color: "#2EBD85" }}>
                   ${
                     currentPrice >= 1000
@@ -609,401 +613,498 @@ export const Header: React.FC<{
                       : currentPrice.toFixed(2)
                   }
                 </span>
-                <span className="flex h-1.5 w-1.5 relative shrink-0">
+                <span className="flex h-1 w-1 sm:h-1.5 sm:w-1.5 relative shrink-0">
                   <span
                     className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
                     style={{ background: "#2EBD85" }}
                   />
                   <span
-                    className="relative inline-flex rounded-full h-1.5 w-1.5"
+                    className="relative inline-flex rounded-full h-1 w-1 sm:h-1.5 sm:w-1.5"
                     style={{ background: "#2EBD85" }}
                   />
                 </span>
               </div>
             </div>
             
-            <div className="text-[#5F9BA6]" style={{ fontSize: "20px", opacity: 0.4, margin: "0 8px" }}>|</div>
+            <div className="text-[#5F9BA6] opacity-40 mx-0.5 sm:mx-2" style={{ fontSize: "16px" }}>|</div>
 
-            {isConnected && (
-              <>
-                <div
-                  className="hidden lg:flex h-10 px-2.5 items-center gap-1.5 rounded-xl"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(7, 18, 24, 0.86) 0%, rgba(8, 20, 18, 0.84) 100%)",
-                    border: "1px solid rgba(62, 244, 255, 0.24)",
-                  }}
-                >
-                  {[1, 2, 5].map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setBetAmount(preset)}
-                      className="text-[11px] font-bold px-2 py-1 rounded-lg transition-all"
-                      style={{
-                        background:
-                          betAmount === preset
-                            ? "rgba(62, 244, 255, 0.26)"
-                            : "rgba(62, 244, 255, 0.08)",
-                        color: "#fff",
-                        border:
-                          betAmount === preset
-                            ? "1px solid rgba(62,244,255,0.85)"
-                            : "1px solid rgba(62,244,255,0.3)",
-                      }}
-                    >
-                      ${preset}
-                    </button>
-                  ))}
+            {/* Mobile Hamburger */}
+            <div className="flex md:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 text-white/70 hover:text-white transition-colors"
+              >
+                <MenuIcon size={24} />
+              </button>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-1.5 sm:gap-3">
+              {isConnected && (
+                <>
                   <div
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                    className="hidden lg:flex h-10 px-2.5 items-center gap-1.5 rounded-xl"
                     style={{
-                      background: "rgba(62,244,255,0.12)",
-                      border: "1px solid rgba(62,244,255,0.32)",
-                    }}
-                  >
-                    <span className="text-xs font-bold" style={{ color: BRAND_ACCENT }}>$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={betAmount}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        if (!isNaN(v) && v >= 0.01) setBetAmount(v);
-                      }}
-                      onBlur={()=>{
-                        console.log("pending");
-                      }}
-                      className="bg-transparent font-bold font-mono text-xs outline-none w-14 text-right text-[#CFFFFF]"
-                    />
-                  </div>
-                </div>
-
-                <div
-                  className="hidden md:flex h-10 px-3 items-center gap-2 rounded-xl"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(7, 18, 24, 0.86) 0%, rgba(8, 20, 18, 0.84) 100%)",
-                    border: "1px solid rgba(62, 244, 255, 0.24)",
-                  }}
-                >
-                  <span className="text-[11px] font-medium text-[#9BB5D8]">BALANCE</span>
-                  <span className="font-bold font-mono text-sm text-white">
-                    {"$"}
-                    {Number(serverBalance).toFixed(2)}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setIsFundModalOpen(true)}
-                  className="hidden sm:flex h-10 px-4 items-center font-bold rounded-xl text-sm transition-all"
-                  style={{
-                    background: "rgba(62, 244, 255, 0.22)",
-                    border: "1px solid rgba(62, 244, 255, 0.5)",
-                    color: "white",
-                    boxShadow: "0 0 20px rgba(62, 244, 255, 0.25)",
-                  }}
-                >
-                  FAUCET
-                </button>
-              </>
-            )}
-
-            {isConnected ? (
-              !token ? (
-                <button
-                  onClick={() => {
-                    promptedAddress.current = null;
-                    handleLogin();
-                  }}
-                  className="h-10 px-4 font-bold rounded-xl text-sm"
-                  style={{
-                    background: "rgba(62, 244, 255, 0.22)",
-                    border: "1px solid rgba(62, 244, 255, 0.5)",
-                    color: "white",
-                  }}
-                >
-                  LOGIN
-                </button>
-              ) : (
-                <div className="relative">
-                  {walletMenuOpen && (
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setWalletMenuOpen(false)}
-                    />
-                  )}
-                  <button
-                    onClick={() => setWalletMenuOpen((v) => !v)}
-                    className="relative z-50 h-10 font-semibold px-3 sm:px-4 transition-all active:scale-95 flex items-center gap-2 text-xs sm:text-sm rounded-xl"
-                    style={{
-                      background: "rgba(7, 18, 24, 0.86)",
+                      background: "linear-gradient(135deg, rgba(7, 18, 24, 0.86) 0%, rgba(8, 20, 18, 0.84) 100%)",
                       border: "1px solid rgba(62, 244, 255, 0.24)",
-                      color: "#ffffff",
                     }}
                   >
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
-                    {isDemoMode && (
-                      <span
-                        className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                    {[1, 2, 5].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setBetAmount(preset)}
+                        className="text-[11px] font-bold px-2 py-1 rounded-lg transition-all"
                         style={{
-                          background: "rgba(62,244,255,0.22)",
-                          color: BRAND_ACCENT,
-                          border: "1px solid rgba(62,244,255,0.35)",
+                          background:
+                            betAmount === preset
+                              ? "rgba(62, 244, 255, 0.26)"
+                              : "rgba(62, 244, 255, 0.08)",
+                          color: "#fff",
+                          border:
+                            betAmount === preset
+                              ? "1px solid rgba(62,244,255,0.85)"
+                              : "1px solid rgba(62,244,255,0.3)",
                         }}
                       >
-                        DEMO
-                      </span>
-                    )}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={`opacity-70 transition-transform duration-200 ${walletMenuOpen ? "rotate-180" : ""}`}
-                      style={{ color: "#9BCDD1" }}
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-
-                  {walletMenuOpen && (
+                        ${preset}
+                      </button>
+                    ))}
                     <div
-                      className="absolute right-0 top-full mt-2 w-56 shadow-2xl overflow-hidden z-50 rounded-2xl"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg"
                       style={{
-                        background: "rgba(4, 10, 14, 0.98)",
-                        border: "1px solid rgba(62, 244, 255, 0.2)",
+                        background: "rgba(62,244,255,0.12)",
+                        border: "1px solid rgba(62,244,255,0.32)",
                       }}
                     >
+                      <span className="text-xs font-bold" style={{ color: BRAND_ACCENT }}>$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={betAmount}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v >= 0.01) setBetAmount(v);
+                        }}
+                        onBlur={()=>{
+                          console.log("pending");
+                        }}
+                        className="bg-transparent font-bold font-mono text-xs outline-none w-14 text-right text-[#CFFFFF]"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex h-10 px-3 items-center gap-2 rounded-xl"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(7, 18, 24, 0.86) 0%, rgba(8, 20, 18, 0.84) 100%)",
+                      border: "1px solid rgba(62, 244, 255, 0.24)",
+                    }}
+                  >
+                    <span className="text-[11px] font-medium text-[#9BB5D8]">BALANCE</span>
+                    <span className="font-bold font-mono text-sm text-white">
+                      {"$"}
+                      {Number(serverBalance).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setIsFundModalOpen(true)}
+                    className="flex h-10 px-4 items-center font-bold rounded-xl text-sm transition-all"
+                    style={{
+                      background: "rgba(62, 244, 255, 0.22)",
+                      border: "1px solid rgba(62, 244, 255, 0.5)",
+                      color: "white",
+                      boxShadow: "0 0 20px rgba(62, 244, 255, 0.25)",
+                    }}
+                  >
+                    FAUCET
+                  </button>
+                </>
+              )}
+
+              {isConnected ? (
+                !token ? (
+                  <button
+                    onClick={() => {
+                      promptedAddress.current = null;
+                      handleLogin();
+                    }}
+                    className="h-10 px-4 font-bold rounded-xl text-sm"
+                    style={{
+                      background: "rgba(62, 244, 255, 0.22)",
+                      border: "1px solid rgba(62, 244, 255, 0.5)",
+                      color: "white",
+                    }}
+                  >
+                    LOGIN
+                  </button>
+                ) : (
+                  <div className="relative">
+                    {walletMenuOpen && (
                       <div
-                        className="px-3 pt-3 pb-2"
+                        className="fixed inset-0 z-40"
+                        onClick={() => setWalletMenuOpen(false)}
+                      />
+                    )}
+                    <button
+                      onClick={() => setWalletMenuOpen((v) => !v)}
+                      className="relative z-50 h-10 font-semibold px-3 sm:px-4 transition-all active:scale-95 flex items-center gap-2 text-xs sm:text-sm rounded-xl"
+                      style={{
+                        background: "rgba(7, 18, 24, 0.86)",
+                        border: "1px solid rgba(62, 244, 255, 0.24)",
+                        color: "#ffffff",
+                      }}
+                    >
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
+                      {isDemoMode && (
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                          style={{
+                            background: "rgba(62,244,255,0.22)",
+                            color: BRAND_ACCENT,
+                            border: "1px solid rgba(62,244,255,0.35)",
+                          }}
+                        >
+                          DEMO
+                        </span>
+                      )}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`opacity-70 transition-transform duration-200 ${walletMenuOpen ? "rotate-180" : ""}`}
+                        style={{ color: "#9BCDD1" }}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+
+                    {walletMenuOpen && (
+                      <div
+                        className="absolute right-0 top-full mt-2 w-56 shadow-2xl overflow-hidden z-50 rounded-2xl"
                         style={{
-                          borderBottom: "1px solid rgba(62, 244, 255, 0.2)",
+                          background: "rgba(4, 10, 14, 0.98)",
+                          border: "1px solid rgba(62, 244, 255, 0.2)",
                         }}
                       >
-                        <p className="text-[10px] uppercase tracking-wider font-semibold mb-1 text-[#9BB5D8]">
-                          {isDemoMode ? "Demo Wallet" : "Connected"}
-                        </p>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-mono text-xs truncate min-w-0 text-white">
-                            {address?.slice(0, 10)}...{address?.slice(-6)}
+                        <div
+                          className="px-3 pt-3 pb-2"
+                          style={{
+                            borderBottom: "1px solid rgba(62, 244, 255, 0.2)",
+                          }}
+                        >
+                          <p className="text-[10px] uppercase tracking-wider font-semibold mb-1 text-[#9BB5D8]">
+                            {isDemoMode ? "Demo Wallet" : "Connected"}
                           </p>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                if (address) {
-                                  navigator.clipboard.writeText(address);
-                                  toast.success("Address copied!", {
-                                    id: "copy-address-card",
-                                    style: {
-                                      background: "rgba(10,20,37,0.96)",
-                                      color: "#ffffff",
-                                      border: "1px solid rgba(62, 244, 255, 0.28)",
-                                      fontSize: "12px",
-                                    },
-                                    iconTheme: {
-                                      primary: "#2EBD85",
-                                      secondary: "#ffffff",
-                                    },
-                                  });
-                                }
-                              }}
-                              className="p-1 hover:bg-white/10 rounded transition-colors"
-                              title="Copy Address"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="13"
-                                height="13"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{ color: "#A8D4D8" }}
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-mono text-xs truncate min-w-0 text-white">
+                              {address?.slice(0, 10)}...{address?.slice(-6)}
+                            </p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  if (address) {
+                                    navigator.clipboard.writeText(address);
+                                    toast.success("Address copied!", {
+                                      id: "copy-address-card",
+                                      style: {
+                                        background: "rgba(10,20,37,0.96)",
+                                        color: "#ffffff",
+                                        border: "1px solid rgba(62, 244, 255, 0.28)",
+                                        fontSize: "12px",
+                                      },
+                                      iconTheme: {
+                                        primary: "#2EBD85",
+                                        secondary: "#ffffff",
+                                      },
+                                    });
+                                  }
+                                }}
+                                className="p-1 hover:bg-white/10 rounded transition-colors"
+                                title="Copy Address"
                               >
-                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                              </svg>
-                            </button>
-                            <a
-                              href={explorerUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1 hover:bg-white/10 rounded transition-colors"
-                              title="View on Solana Explorer"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="13"
-                                height="13"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{ color: "#A8D4D8" }}
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  style={{ color: "#A8D4D8" }}
+                                >
+                                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                              </button>
+                              <a
+                                href={explorerUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1 hover:bg-white/10 rounded transition-colors"
+                                title="View on Solana Explorer"
                               >
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                <polyline points="15 3 21 3 21 9" />
-                                <line x1="10" y1="14" x2="21" y2="3" />
-                              </svg>
-                            </a>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  style={{ color: "#A8D4D8" }}
+                                >
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                  <polyline points="15 3 21 3 21 9" />
+                                  <line x1="10" y1="14" x2="21" y2="3" />
+                                </svg>
+                              </a>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <button
-                        onClick={handleDisconnect}
-                        className="w-full text-left px-4 py-3 font-medium transition-colors flex items-center gap-2 text-sm"
-                        style={{ color: "#F26880" }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "rgba(242,104,128,0.08)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "transparent";
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        <button
+                          onClick={handleDisconnect}
+                          className="w-full text-left px-4 py-3 font-medium transition-colors flex items-center gap-2 text-sm"
+                          style={{ color: "#F26880" }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.background =
+                              "rgba(242,104,128,0.08)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.background =
+                              "transparent";
+                          }}
                         >
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                          <polyline points="16 17 21 12 16 7" />
-                          <line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                        Disconnect
-                      </button>
-                    </div>
-                  )}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                          </svg>
+                          Disconnect
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button
+                    onClick={startDemo}
+                    disabled={isDemoLoading}
+                    className="h-10 px-3 sm:px-4 font-bold rounded-xl border transition-all text-xs sm:text-sm disabled:opacity-50"
+                    style={{
+                      color: BRAND_ACCENT,
+                      borderColor: "rgba(62, 244, 255, 0.55)",
+                      background: "rgba(7, 18, 24, 0.86)",
+                    }}
+                  >
+                    {isDemoLoading ? "STARTING..." : "DEMO"}
+                  </button>
+                  <button
+                    onClick={() => setWalletModalVisible(true)}
+                    className="h-10 px-3 sm:px-4 font-bold rounded-xl text-white transition-all duration-300 text-xs sm:text-sm hover:scale-105 hover:shadow-lg active:scale-95"
+                    style={{
+                      background: "rgba(62, 244, 255, 0.22)",
+                      border: "1px solid rgba(62, 244, 255, 0.5)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "rgba(62, 244, 255, 0.32)";
+                      (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 20px rgba(62, 244, 255, 0.25)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "rgba(62, 244, 255, 0.22)";
+                      (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                    }}
+                  >
+                    CONNECT WALLET
+                  </button>
                 </div>
-              )
-            ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  onClick={startDemo}
-                  disabled={isDemoLoading}
-                  className="h-10 px-3 sm:px-4 font-bold rounded-xl border transition-all text-xs sm:text-sm disabled:opacity-50"
-                  style={{
-                    color: BRAND_ACCENT,
-                    borderColor: "rgba(62, 244, 255, 0.55)",
-                    background: "rgba(7, 18, 24, 0.86)",
-                  }}
-                >
-                  {isDemoLoading ? "STARTING..." : "DEMO"}
-                </button>
-                <button
-                  onClick={() => setWalletModalVisible(true)}
-                  className="h-10 px-3 sm:px-4 font-bold rounded-xl text-white transition-all duration-300 text-xs sm:text-sm hover:scale-105 hover:shadow-lg active:scale-95"
-                  style={{
-                    background: "rgba(62, 244, 255, 0.22)",
-                    border: "1px solid rgba(62, 244, 255, 0.5)",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "rgba(62, 244, 255, 0.32)";
-                    (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 20px rgba(62, 244, 255, 0.25)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "rgba(62, 244, 255, 0.22)";
-                    (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                  }}
-                >
-                  CONNECT WALLET
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-
-        {isConnected && (
-          <div className="relative z-10 mt-2 pt-2 border-t border-white/10 lg:hidden flex items-center gap-2 overflow-x-auto">
-            <div
-              className="flex h-9 px-2 items-center gap-1.5 rounded-xl shrink-0"
-              style={{
-                background: "rgba(7, 18, 24, 0.86)",
-                border: "1px solid rgba(62, 244, 255, 0.24)",
-              }}
-            >
-              {[1, 2, 5].map((preset) => (
-                <button
-                  key={preset}
-                  onClick={() => setBetAmount(preset)}
-                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-md transition-all"
-                  style={{
-                    background:
-                      betAmount === preset
-                        ? "rgba(62, 244, 255, 0.26)"
-                        : "rgba(62, 244, 255, 0.08)",
-                    color: "#fff",
-                    border: "1px solid rgba(62,244,255,0.35)",
-                  }}
-                >
-                  ${preset}
-                </button>
-              ))}
-              <div
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
-                style={{
-                  background: "rgba(62,244,255,0.12)",
-                  border: "1px solid rgba(62,244,255,0.3)",
-                }}
-              >
-                <span className="text-[10px] font-bold" style={{ color: BRAND_ACCENT }}>$</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={betAmount}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    if (!isNaN(v) && v >= 0.01) setBetAmount(v);
-                  }}
-                  className="bg-transparent font-bold font-mono text-[10px] outline-none w-12 text-right text-[#CDEEFF]"
-                />
-              </div>
-            </div>
-
-            <div
-              className="h-9 px-3 flex items-center gap-1.5 rounded-xl shrink-0"
-              style={{
-                background: "rgba(7, 18, 24, 0.86)",
-                border: "1px solid rgba(62, 244, 255, 0.24)",
-              }}
-            >
-              <span className="text-[10px] font-medium text-[#9BB5D8]">BAL</span>
-              <span className="font-bold font-mono text-xs text-white">
-                {"$"}
-                {Number(serverBalance).toFixed(2)}
-              </span>
-            </div>
-
-            <button
-              onClick={() => setIsFundModalOpen(true)}
-              className="h-9 px-3 font-bold rounded-xl text-xs text-white shrink-0"
-              style={{
-                background: "rgba(62, 244, 255, 0.22)",
-                border: "1px solid rgba(62, 244, 255, 0.5)",
-              }}
-            >
-              FAUCET
-            </button>
-          </div>
-        )}
       </header>
+
+      {/* Mobile Sidebar */}
+      <Dialog
+        open={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        className="relative z-[60]"
+      >
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-y-0 right-0 flex max-w-full">
+          <DialogPanel
+            className="w-screen max-w-xs transform transition duration-500 ease-in-out bg-[#040a0e]/98 border-l border-white/10 p-6 flex flex-col gap-8 shadow-2xl"
+            style={{
+              background: "linear-gradient(180deg, rgba(4, 10, 14, 0.98) 0%, rgba(8, 20, 28, 0.98) 100%)",
+              backdropFilter: "blur(20px)",
+              borderColor: "rgba(62, 244, 255, 0.15)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black tracking-tighter text-white">MENU</h2>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 text-white/50 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              {isConnected ? (
+                <>
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#5F9BA6]">Wallet</p>
+                    <div
+                      className="p-4 rounded-xl space-y-3"
+                      style={{
+                        background: "rgba(7, 18, 24, 0.86)",
+                        border: "1px solid rgba(62, 244, 255, 0.24)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-white/90">
+                          {address?.slice(0, 8)}...{address?.slice(-8)}
+                        </span>
+                        {isDemoMode && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                            DEMO
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-[#9BB5D8]">Balance</span>
+                          <span className="font-bold text-white font-mono">${Number(serverBalance).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#5F9BA6]">Quick Bet</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[1, 2, 5].map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => setBetAmount(preset)}
+                          className="py-2.5 rounded-lg text-xs font-bold transition-all"
+                          style={{
+                            background: betAmount === preset ? "rgba(62, 244, 255, 0.2)" : "rgba(255,255,255,0.03)",
+                            color: betAmount === preset ? BRAND_ACCENT : "white",
+                            border: `1px solid ${betAmount === preset ? BRAND_ACCENT : "rgba(255,255,255,0.1)"}`,
+                          }}
+                        >
+                          ${preset}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+                      style={{
+                        background: "rgba(62,244,255,0.05)",
+                        border: "1px solid rgba(62,244,255,0.2)",
+                      }}
+                    >
+                      <span className="text-sm font-bold text-cyan-400">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={betAmount}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v >= 0.01) setBetAmount(v);
+                        }}
+                        className="bg-transparent font-bold font-mono text-sm outline-none w-full text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsFundModalOpen(true);
+                      }}
+                      className="w-full py-3.5 rounded-xl font-bold text-sm bg-cyan-500/20 text-white border border-cyan-500/40 shadow-[0_0_15px_rgba(62,244,255,0.1)]"
+                    >
+                      FAUCET
+                    </button>
+                    {!token ? (
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          promptedAddress.current = null;
+                          handleLogin();
+                        }}
+                        className="w-full py-3.5 rounded-xl font-bold text-sm bg-cyan-500/20 text-white border border-cyan-500/40"
+                      >
+                        LOGIN
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          handleDisconnect();
+                        }}
+                        className="w-full py-3.5 rounded-xl font-bold text-sm bg-red-500/10 text-red-400 border border-red-500/20"
+                      >
+                        DISCONNECT
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      startDemo();
+                    }}
+                    disabled={isDemoLoading}
+                    className="w-full py-4 rounded-xl font-bold text-sm border border-cyan-500/40 text-cyan-400 bg-cyan-500/5"
+                  >
+                    {isDemoLoading ? "STARTING..." : "TRY DEMO MODE"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setWalletModalVisible(true);
+                    }}
+                    className="w-full py-4 rounded-xl font-bold text-sm bg-cyan-500/20 text-white border border-cyan-500/40 shadow-[0_0_20px_rgba(62,244,255,0.15)]"
+                  >
+                    CONNECT WALLET
+                  </button>
+                </div>
+              )}
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
 
       <Dialog
         open={isFundModalOpen}

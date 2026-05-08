@@ -79,9 +79,9 @@ export const TradingView: React.FC = () => {
 
   return (
     <div className="relative overflow-hidden h-full w-full">
-      <div className="absolute top-0 left-0 z-40 flex items-center gap-3">
+      <div className="absolute top-0 left-0 z-40 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-2 sm:p-0">
         <motion.div
-          className="inline-flex rounded-2xl border p-1 backdrop-blur-md"
+          className="inline-flex rounded-xl sm:rounded-2xl border p-0.5 sm:p-1 backdrop-blur-md"
           style={{
             borderColor: "rgba(62, 244, 255, 0.16)",
           }}
@@ -92,7 +92,7 @@ export const TradingView: React.FC = () => {
           <motion.button
             type="button"
             onClick={() => setActiveMode("pool")}
-            className="relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+            className="relative flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-xs font-bold sm:font-semibold transition-colors uppercase tracking-wider"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.98 }}
             style={{
@@ -102,7 +102,7 @@ export const TradingView: React.FC = () => {
             {activeMode === "pool" && (
               <motion.div
                 layoutId="trading-mode-pill"
-                className="absolute inset-0 rounded-xl"
+                className="absolute inset-0 rounded-lg sm:rounded-xl"
                 style={{
                   background: "rgba(62, 244, 255, 0.1)",
                   border: "1px solid rgba(62, 244, 255, 0.18)",
@@ -110,14 +110,14 @@ export const TradingView: React.FC = () => {
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
               />
             )}
-            <Layers2 size={16} className="relative z-10" />
+            <Layers2 size={isHoveringWarning ? 12 : 14} className="relative z-10 hidden sm:block" />
             <span className="relative z-10">Pool Trading</span>
           </motion.button>
 
           <motion.button
             type="button"
             onClick={() => setActiveMode("social")}
-            className="relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+            className="relative flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-xs font-bold sm:font-semibold transition-colors uppercase tracking-wider"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.98 }}
             style={{
@@ -127,7 +127,7 @@ export const TradingView: React.FC = () => {
             {activeMode === "social" && (
               <motion.div
                 layoutId="trading-mode-pill"
-                className="absolute inset-0 rounded-xl"
+                className="absolute inset-0 rounded-lg sm:rounded-xl"
                 style={{
                   background: "rgba(62, 244, 255, 0.1)",
                   border: "1px solid rgba(62, 244, 255, 0.18)",
@@ -135,7 +135,7 @@ export const TradingView: React.FC = () => {
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
               />
             )}
-            <ChartCandlestick size={16} className="relative z-10" />
+            <ChartCandlestick size={14} className="relative z-10 hidden sm:block" />
             <span className="relative z-10">Social Trading</span>
           </motion.button>
         </motion.div>
@@ -149,13 +149,14 @@ export const TradingView: React.FC = () => {
                 exit={{ opacity: 0, scale: 0.8 }}
                 onMouseEnter={() => setIsHoveringWarning(true)}
                 onMouseLeave={() => setIsHoveringWarning(false)}
-                className="cursor-help p-2 rounded-xl border flex items-center justify-center backdrop-blur-md transition-colors"
+                onClick={() => setIsHoveringWarning(!isHoveringWarning)}
+                className="cursor-help p-1.5 sm:p-2 rounded-lg sm:rounded-xl border flex items-center justify-center backdrop-blur-md transition-colors"
                 style={{
                   borderColor: "rgba(234, 179, 8, 0.24)",
                   background: "rgba(234, 179, 8, 0.08)",
                 }}
               >
-                <AlertTriangle size={22} className="text-yellow-500" />
+                <AlertTriangle size={18} className="text-yellow-500" />
               </motion.div>
 
               <AnimatePresence>
@@ -164,7 +165,7 @@ export const TradingView: React.FC = () => {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full mt-2 left-0 z-50 w-[380px] rounded-2xl border p-4 backdrop-blur-xl pointer-events-none"
+                    className="absolute top-full mt-2 left-0 z-50 w-[280px] sm:w-[380px] rounded-xl sm:rounded-2xl border p-3 sm:p-4 backdrop-blur-xl"
                     style={{
                       backgroundColor: "rgba(209, 126, 85, 0.16)",
                       borderColor: "rgba(234, 179, 8, 0.3)",
@@ -173,11 +174,11 @@ export const TradingView: React.FC = () => {
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-1">
-                        <h4 className="text-sm font-bold text-white/95 mb-1">
+                        <h4 className="text-xs sm:text-sm font-bold text-white/95 mb-1">
                           Solana Market Beta
                         </h4>
-                        <p className="text-[12px] leading-relaxed text-white/60">
-                          Parameters for this market are currently under development and not yet fine-tuned.
+                        <p className="text-[10px] sm:text-[12px] leading-relaxed text-white/60">
+                          Parameters for this market are currently under development.
                           Please trade with caution.
                         </p>
                       </div>
@@ -193,10 +194,10 @@ export const TradingView: React.FC = () => {
       {shouldShowTradingGrid ? (
         <div className="flex-1 flex flex-col relative overflow-hidden h-full">
           {demoWinFeed ? (
-            <div className="pointer-events-none absolute left-3 top-3 z-30 sm:left-4 sm:top-4">
+            <div className="pointer-events-none absolute right-3 top-3 z-30 sm:left-4 sm:top-4 sm:right-auto">
               <div
                 key={demoWinFeed.id}
-                className="wallet-win-toast w-fit rounded-lg border px-2.5 py-1.5 sm:px-3 sm:py-2 backdrop-blur-md ml-3 mt-3"
+                className="wallet-win-toast w-fit rounded-lg border px-2 py-1 sm:px-3 sm:py-2 backdrop-blur-md"
                 style={{
                   background: "rgba(11, 16, 28, 0.8)",
                   borderColor: "rgba(46, 189, 133, 0.4)",
@@ -204,20 +205,20 @@ export const TradingView: React.FC = () => {
                     "0 4px 12px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(46, 189, 133, 0.1)",
                 }}
               >
-                <div className="flex items-center gap-2 sm:gap-2.5">
-                  <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center">
-                    <Trophy className="h-4 w-4" color={BRAND_ACCENT} />
+                <div className="flex items-center gap-1.5 sm:gap-2.5">
+                  <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center">
+                    <Trophy className="h-3.5 w-3.4" color={BRAND_ACCENT} />
                   </div>
 
-                  <span className="text-[13px] font-medium leading-none text-white/90 sm:text-[14px]">
+                  <span className="text-[11px] font-medium leading-none text-white/90 sm:text-[14px]">
                     {truncateAddress(demoWinFeed.user)}
                   </span>
 
-                  <span className="text-[13px] font-bold leading-none text-bn-green sm:text-[14px]">
+                  <span className="text-[11px] font-bold leading-none text-[#2EBD85] sm:text-[14px]">
                     +${demoWinFeed.amount}
                   </span>
 
-                  <span className="rounded bg-bn-green/20 px-1.5 py-0.5 text-[10px] font-bold leading-none text-bn-green sm:text-[11px]">
+                  <span className="rounded bg-[#2EBD85]/20 px-1 py-0.5 text-[8px] font-black leading-none text-[#2EBD85] sm:text-[11px]">
                     WIN
                   </span>
                 </div>

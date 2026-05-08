@@ -87,10 +87,10 @@ const ZKRoadmap: React.FC<{ pageRef: React.RefObject<HTMLDivElement | null> }> =
   return (
     <section ref={roadmapRef} className="relative h-[350vh]">
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
-        <div className="w-full max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-8 md:gap-16 items-center justify-center">
+        <div className="w-full max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-6 md:gap-16 items-center justify-center">
 
           {/* Roadmap Indicators (Left) */}
-          <div className="relative flex md:flex-col gap-6 md:gap-10 items-center justify-center py-4 md:py-0 w-full md:w-auto">
+          <div className="relative flex md:flex-col gap-4 md:gap-10 items-center justify-center py-2 md:py-0 w-full md:w-auto">
             {/* Vertical/Horizontal Line Background */}
             <div className="absolute left-0 md:left-5 top-1/2 md:top-0 w-full md:w-[2px] h-[2px] md:h-full bg-white/10 -translate-y-1/2 md:translate-y-0" />
 
@@ -315,12 +315,12 @@ export const ZKComponent: React.FC<{ pageRef: React.RefObject<HTMLDivElement | n
     <>
       <ZKRoadmap pageRef={pageRef} />
 
-      <section className="max-w-7xl mx-auto px-6 md:px-10 py-18">
-        <h2 className="text-3xl md:text-4xl font-extrabold mb-6">
+      <section className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-18">
+        <h2 className="text-2xl md:text-4xl font-extrabold mb-4 md:mb-6">
           Settlement Constraints - ZK Circuit
         </h2>
         <p
-          className="text-sm md:text-base text-white/75 max-w-5xl mb-6"
+          className="text-xs md:text-base text-white/75 max-w-5xl mb-6 md:mb-10"
           style={{ fontFamily: MONO_FONT }}
         >
           The settlement proof enforces six constraint groups that cover trade

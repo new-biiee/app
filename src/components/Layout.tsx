@@ -145,7 +145,7 @@ export const Layout: React.FC = () => {
         className={`flex-1 flex flex-col h-full relative z-10 transition-all duration-300 overflow-auto ${isIntro
           ? ""
           : `${isSidebarCollapsed ? "xl:pl-[112px]" : "xl:pl-[276px]"} 2xl:${isSidebarCollapsed ? "pl-[120px]" : "pl-[292px]"
-          } pb-[90px] xl:pb-4 px-3 sm:px-4 xl:pr-5`
+          } pb-[76px] sm:pb-[90px] xl:pb-4 px-2 sm:px-4 xl:pr-5`
           }`}
       >
         {(!isIntro && !isDocPath) && <div className={isMaximized ? "hidden" : ""}>
@@ -159,14 +159,14 @@ export const Layout: React.FC = () => {
 
         {(!isIntro && !isDocPath) ? (
           <section
-            className="relative mt-2 xl:mt-3 rounded-2xl border border-white/10 flex-1 min-h-0 overflow-hidden"
+            className="relative mt-2 xl:mt-3 rounded-xl sm:rounded-2xl border border-white/10 flex-1 min-h-0 overflow-hidden"
             style={{
               borderColor: "rgba(62, 244, 255, 0.2)",
               boxShadow: "0 24px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(62, 244, 255, 0.08), inset 0 -1px 0 rgba(46, 189, 133, 0.08)",
             }}
           >
             <div
-              className="relative z-10 p-3 sm:p-4 xl:p-5 h-full min-h-0 transition-transform duration-500"
+              className="relative z-10 p-2 sm:p-4 xl:p-5 h-full min-h-0 transition-transform duration-500"
               style={{
                 backgroundImage:
                   "linear-gradient(120deg, rgba(3, 37, 61, 0.12) 50%, rgba(16, 29, 51, 0.12) 50%, rgba(20, 46, 52, 0.2) 62%, rgba(18, 67, 88, 0.24) 80%)",

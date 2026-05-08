@@ -183,10 +183,10 @@ export const PoweredBy: React.FC = () => {
     });
 
     return (
-        <section className="max-w-7xl mx-auto px-6 md:px-10 pt-15 pb-30">
-            <div className="flex gap-6 justify-center items-center">
+        <section className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:pt-15 md:pb-24">
+            <div className="flex gap-4 md:gap-6 justify-center items-center">
                 <div className="mt-4 w-[10%] h-[2px] bg-gradient-to-r from-transparent via-[#3ef4ff] to-transparent mb-6" />
-                <h2 className="text-3xl md:text-4xl font-extrabold mb-3">
+                <h2 className="text-2xl md:text-4xl font-extrabold mb-3 text-center">
                     Powered by Solana
                 </h2>
                 <div className="mt-4 w-[10%] h-[2px] bg-gradient-to-r from-transparent via-[#3ef4ff] to-transparent mb-6" />
@@ -198,8 +198,8 @@ export const PoweredBy: React.FC = () => {
                 Solana serves as the finality and settlement layer for the Carnot platform, providing the cryptographic foundation required to anchor off-chain computations. The network performs on-chain Groth16 verification, allowing the system to transition from high-speed off-chain execution to permanent, immutable records.
             </p> */}
 
-            <div className="h-[70vh] flex justify-center items-center w-full mt-8">
-                <div className="grid grid-cols-2 justify-items-start w-full">
+            <div className="min-h-[50vh] lg:h-[70vh] flex justify-center items-center w-full mt-4 md:mt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 justify-items-start w-full gap-8">
                     <div
                         className="hidden lg:flex items-center justify-center min-h-[460px]"
                         onMouseLeave={() => setActiveSolana(null)}

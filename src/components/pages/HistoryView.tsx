@@ -8,10 +8,7 @@ import {
   History,
   Wallet,
   Target,
-  TrendingDown,
-  TrendingUp,
   Scale,
-  Medal,
   Percent,
   Bitcoin,
   CircleDollarSign,
@@ -454,10 +451,10 @@ export const HistoryView: React.FC = () => {
             "0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(62, 244, 255, 0.08), inset 0 -1px 0 rgba(46, 189, 133, 0.08)",
         }}
       >
-        <div className="flex items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b" style={{ borderColor: "rgba(62, 244, 255, 0.12)" }}>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0"
               style={{
                 background:
                   "linear-gradient(135deg, rgba(62, 244, 255, 0.16) 0%, rgba(46, 189, 133, 0.12) 100%)",
@@ -465,23 +462,22 @@ export const HistoryView: React.FC = () => {
                 boxShadow: "0 0 18px rgba(62, 244, 255, 0.16)",
               }}
             >
-              <History size={18} style={{ color: BRAND_ACCENT }} />
+              <History size={16} className="sm:w-[18px] sm:h-[18px]" style={{ color: BRAND_ACCENT }} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2
-                className="text-base font-semibold"
-                style={{ color: "#ffffff" }}
+                className="text-sm sm:text-base font-bold sm:font-semibold text-white truncate"
               >
                 Trading History
               </h2>
-              <p className="text-xs font-medium" style={{ color: "#7AA8B5" }}>
+              <p className="hidden sm:block text-xs font-medium" style={{ color: "#7AA8B5" }}>
                 Settled orders and reward outcomes for {selectedMarketLabel}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span
-              className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 font-semibold rounded-md"
+              className="inline-flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[11px] px-2 py-1 font-semibold rounded-md"
               style={{
                 color: "#ffffff",
                 background: "rgba(62, 244, 255, 0.08)",
@@ -491,12 +487,12 @@ export const HistoryView: React.FC = () => {
               <span className="opacity-90" style={{ color: BRAND_ACCENT }}>
                 {marketIconFor(selectedMarketId)}
               </span>
-              <span className="font-mono tracking-tight">
+              <span className="font-mono tracking-tight hidden xs:inline">
                 [ {selectedMarketLabel} ]
               </span>
             </span>
             <span
-              className="text-[11px] px-2.5 py-1 font-semibold uppercase tracking-[0.18em] rounded-md"
+              className="text-[9px] sm:text-[11px] px-2 py-1 font-semibold uppercase tracking-[0.1em] sm:tracking-[0.18em] rounded-md"
               style={{
                 color: BRAND_GREEN,
                 background: "rgba(46, 189, 133, 0.10)",
@@ -510,7 +506,7 @@ export const HistoryView: React.FC = () => {
 
         <div className="px-4 sm:px-5 pb-4">
           <h3
-            className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3"
+            className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3 mt-4"
             style={{ color: "#7AA8B5" }}
           >
             Portfolio & performance
@@ -533,14 +529,14 @@ export const HistoryView: React.FC = () => {
               />
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               <SummaryTile
                 icon={<Wallet size={16} strokeWidth={2.2} />}
-                label="Portfolio (total)"
+                label="Portfolio"
                 value={fmtUsd(
                   stats ? microToUsdt(stats.portfolio.totalMicro) : 0,
                 )}
-                hint="Free + locked + In-app"
+                hint="Total Balance"
                 valueTone="accent"
               />
               <SummaryTile
@@ -550,28 +546,8 @@ export const HistoryView: React.FC = () => {
                   stats ? microToUsdt(stats.trading.totalBetMicro) : 0,
                 )}
                 hint={
-                  stats ? `${stats.trading.settledCount} settled orders` : "—"
+                  stats ? `${stats.trading.settledCount} settled` : "—"
                 }
-              />
-              <SummaryTile
-                icon={<TrendingDown size={16} strokeWidth={2.2} />}
-                label="Total lost (stakes)"
-                value={fmtUsd(
-                  stats ? microToUsdt(stats.trading.totalLostStakeMicro) : 0,
-                )}
-                hint={stats ? `${stats.trading.losses} losing bets` : "—"}
-                valueTone="loss"
-              />
-              <SummaryTile
-                icon={<TrendingUp size={16} strokeWidth={2.2} />}
-                label="Total win (payouts)"
-                value={fmtUsd(
-                  stats ? microToUsdt(stats.trading.totalWinPayoutMicro) : 0,
-                )}
-                hint={
-                  stats ? `Gross returned on ${stats.trading.wins} wins` : "—"
-                }
-                valueTone="gain"
               />
               <SummaryTile
                 icon={<Scale size={16} strokeWidth={2.2} />}
@@ -584,7 +560,7 @@ export const HistoryView: React.FC = () => {
                       })
                     : "$0.00"
                 }
-                hint="Wins: payout − stake · Losses: −stake"
+                hint="Profit/Loss"
                 valueTone={
                   stats
                     ? microToUsdt(stats.trading.netPnlMicro) > 0
@@ -596,23 +572,6 @@ export const HistoryView: React.FC = () => {
                 }
               />
               <SummaryTile
-                icon={<Medal size={16} strokeWidth={2.2} />}
-                label="Leaderboard (PnL)"
-                value={
-                  stats?.leaderboard.rank != null
-                    ? `#${stats.leaderboard.rank}`
-                    : "—"
-                }
-                hint={
-                  stats
-                    ? stats.leaderboard.totalRankedUsers > 0
-                      ? `of ${stats.leaderboard.totalRankedUsers} ranked traders`
-                      : "No settled trades yet"
-                    : "—"
-                }
-                valueTone="accent"
-              />
-              <SummaryTile
                 icon={<Percent size={16} strokeWidth={2.2} />}
                 label="Win rate"
                 value={
@@ -620,11 +579,7 @@ export const HistoryView: React.FC = () => {
                     ? `${((stats.trading.wins / stats.trading.settledCount) * 100).toFixed(1)}%`
                     : "—"
                 }
-                hint={
-                  stats && stats.trading.settledCount > 0
-                    ? `${stats.trading.wins} wins / ${stats.trading.settledCount} settled`
-                    : "—"
-                }
+                hint="Overall Performance"
                 valueTone={
                   stats && stats.trading.settledCount > 0
                     ? stats.trading.wins / stats.trading.settledCount >= 0.5
@@ -638,7 +593,90 @@ export const HistoryView: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-auto w-full">
-          <table className="w-full text-center border-separate border-spacing-0 min-w-[720px] mx-auto">
+          {/* Mobile View - Cards */}
+          <div className="md:hidden space-y-4 px-4 pb-10">
+            {loading ? (
+              <div className="py-20 flex justify-center">
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: BRAND_ACCENT }} />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="py-20 text-center text-sm font-mono opacity-50">No order history found.</div>
+            ) : (
+              orders.map((order, i) => (
+                <div 
+                  key={i} 
+                  className="rounded-xl border p-4 space-y-3"
+                  style={{
+                    background: "rgba(255,255,255,0.02)",
+                    borderColor: "rgba(62, 244, 255, 0.12)",
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <span className="opacity-70">{marketIconFor(order.marketId ?? selectedMarketId)}</span>
+                      <span className="text-xs font-bold font-mono text-white">
+                        {order.settledAt ? format(new Date(order.settledAt), "HH:mm:ss") : "-"}
+                      </span>
+                    </div>
+                    <span
+                      className="px-2 py-0.5 text-[10px] font-black tracking-widest rounded uppercase"
+                      style={{
+                        background: order.settledWin === true ? "rgba(46,189,133,0.12)" : order.settledWin === false ? "rgba(246,70,93,0.12)" : "rgba(255,255,255,0.06)",
+                        color: order.settledWin === true ? "#2EBD85" : order.settledWin === false ? "#F6465D" : "#d0d0d0",
+                      }}
+                    >
+                      {order.settledWin === true ? "WIN" : order.settledWin === false ? "LOSE" : order.status || "PENDING"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <p className="text-[9px] uppercase font-bold opacity-40 mb-0.5">Direction</p>
+                      <div className="text-xs font-bold"><DirectionBadge dir={order.direction} /></div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase font-bold opacity-40 mb-0.5">Stake</p>
+                      <p className="text-xs font-black font-mono" style={{ color: BRAND_ACCENT }}>{fmtUsd(microToUsdt(order.amount))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase font-bold opacity-40 mb-0.5">Price Range</p>
+                      <p className="text-[10px] font-mono opacity-80">{formatPriceRange(order, order.marketId ?? selectedMarketId)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase font-bold opacity-40 mb-0.5">Payout</p>
+                      <p className="text-xs font-black font-mono">
+                        {order.settledWin === true ? (
+                          <span style={{ color: "#2EBD85" }}>{fmtUsd(calcPayout(order) ?? microToUsdt(order.amount) * Number(order.rewardRate ?? 0))}</span>
+                        ) : order.settledWin === false ? (
+                          <span style={{ color: "#F6465D" }}>$0.00</span>
+                        ) : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Batch Info */}
+                  {(() => {
+                    const orderKey = order.orderId ?? `${order.marketId ?? "m"}:${order.settledAt ?? order.createdAt ?? "na"}`;
+                    const batchMeta = orderBatchMeta[orderKey];
+                    if (batchMeta?.onchainTxHash) {
+                      return (
+                        <div className="pt-2 border-t border-white/5">
+                           <a href={toExplorerTxUrl(batchMeta.onchainTxHash)} target="_blank" rel="noreferrer" 
+                              className="text-[9px] font-mono opacity-50 truncate block hover:opacity-100 transition-opacity underline decoration-dotted">
+                             Tx: {batchMeta.onchainTxHash}
+                           </a>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <table className="hidden md:table w-full text-center border-separate border-spacing-0 min-w-[720px] mx-auto">
             <thead className="z-10">
               <tr
                 className="text-xs uppercase tracking-wider"
@@ -734,7 +772,7 @@ export const HistoryView: React.FC = () => {
                 <tr>
                   <td
                     colSpan={8}
-                    className="py-20 text-center text-lg"
+                    className="py-20 text-center text-md"
                     style={{
                       fontFamily: "monospace",
                       color: "rgba(241, 252, 255, 0.73)",

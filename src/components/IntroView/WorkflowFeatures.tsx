@@ -92,7 +92,6 @@ const WORKFLOW_TABS = [
   {
     key: "price",
     label: "Real-Time Price Feed",
-    color: BRAND.green,
     Component: PricingEngineWorkflow,
   },
   {
@@ -181,12 +180,12 @@ export const WorkflowFeatures: React.FC = () => {
   const CurrentIcon = currentFeature.icon;
 
   return (
-    <section ref={featureRef} className="max-w-7xl mx-auto px-6 md:px-10 py-10">
-      <h2 className="text-3xl md:text-4xl font-extrabold mb-3">
+    <section ref={featureRef} className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-16">
+      <h2 className="text-2xl md:text-4xl font-extrabold mb-3">
         Workflow Integrity Pipeline
       </h2>
       <p
-        className="text-sm md:text-base text-white/75 max-w-3xl mb-10"
+        className="text-sm md:text-base text-white/75 max-w-3xl mb-8 md:mb-10"
         style={{ fontFamily: MONO_FONT }}
       >
         From 5-second trade to on-chain finality: Carnot anchors every micro-trade to absolute mathematical certainty maintaing the authenticity of the trade.
@@ -283,7 +282,7 @@ export const WorkflowFeatures: React.FC = () => {
             </div>
 
             <div
-              className="flex w-[800px] justify-center rounded-2xl h-full items-center"
+              className="flex w-full xl:w-[800px] justify-center rounded-2xl h-full items-center overflow-hidden"
               style={{
                 // background:
                 //   "linear-gradient(160deg, rgba(7, 18, 24, 0.86) 0%, rgba(4, 10, 14, 0.8) 62%, rgba(8, 20, 16, 0.72) 100%)",

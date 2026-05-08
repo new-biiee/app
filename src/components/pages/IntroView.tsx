@@ -4,6 +4,7 @@ import {
   domAnimation,
 } from "framer-motion";
 
+// import { CarnotDefinition } from "../IntroView/CarnotDefinition";
 import { PoweredBy } from "../IntroView/PoweredBy";
 import { WorkflowFeatures } from "../IntroView/WorkflowFeatures";
 import { ZKComponent } from "../IntroView/ZKComponent";
