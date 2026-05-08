@@ -170,7 +170,7 @@ let cachedIdl: any = null;
 async function getIdl() {
   if (!cachedIdl) {
     const mod =
-      await import("../../../../monorepo/carnot-sdk/src/idl/carnot_engine.json");
+      await import("@carnot-zk/sdk/idl");
     cachedIdl = mod.default;
   }
   return cachedIdl;

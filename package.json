@@ -16,6 +16,7 @@
     "build-llms-txt": "tsx scripts/build-llms-txt.ts"
   },
   "dependencies": {
+    "@carnot-zk/sdk": "^0.1.6",
     "@coral-xyz/anchor": "^0.30.1",
     "@headlessui/react": "^2.2.9",
     "@mdx-js/react": "3.1.1",
