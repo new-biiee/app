@@ -1,7 +1,8 @@
 import Axios, { AxiosError } from "axios";
+import { BACKEND_URL } from "../constant";
 
 export const AXIOS_INSTANCE = Axios.create({
-  baseURL: "http://localhost:3001",
+  baseURL: BACKEND_URL,
 });
 
 AXIOS_INSTANCE.interceptors.request.use((config) => {
