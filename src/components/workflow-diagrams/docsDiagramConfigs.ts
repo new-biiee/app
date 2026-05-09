@@ -21,11 +21,12 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       // Neon blue
       color: "#00FFFF",
       fill: "#00FFFF",
-      glow: true, // if supported by renderer
+      // glow: true, // if supported by renderer
       processing: true,
-      style: {
-        filter: 'drop-shadow(0 0 16px #00FFFF)' // optional for neon effect
-      }
+      // @ts-ignore
+      // style: {
+        // filter: 'drop-shadow(0 0 16px #00FFFF)' // optional for neon effect
+        // }
     },
     {
       id: "close",
@@ -38,10 +39,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       // Neon yellow
       color: "#FFFF00",
       fill: "#FFFF00",
-      glow: true,
-      style: {
-        filter: 'drop-shadow(0 0 12px #FFFF00)'
-      }
+      // glow: true,
+      // style: {
+        // filter: 'drop-shadow(0 0 12px #FFFF00)'
+        // }
     },
     {
       id: "tick",
@@ -55,10 +56,13 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       color: "#FF7F50", // Coral
       fill: "#FF7F50", // Coral
       processing: true,
-      glow: true,
-      style: {
-        filter: 'drop-shadow(0 0 16px #FF7F50)'
-      }
+      // glow: true,
+      // style: {
+      //   filter: 'drop-shadow(0 0 16px #FF7F50)'
+      // }
+      // style: {
+      //   filter: 'drop-shadow(0 0 16px #FF7F50)'
+      // }
     },
     {
       id: "zk",
@@ -71,10 +75,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       // Neon orange replacing purple
       color: "#FFA500",
       fill: "#FFA500",
-      glow: true,
-      style: {
-        filter: 'drop-shadow(0 0 16px #FFA500)'
-      }
+      // glow: true,
+      // style: {
+      //   filter: 'drop-shadow(0 0 16px #FFA500)'
+      // }
     },
     {
       id: "claim",
@@ -88,10 +92,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       color: "#39FF14",
       fill: "#39FF14",
       processing: true,
-      glow: true,
-      style: {
-        filter: 'drop-shadow(0 0 20px #39FF14)'
-      }
+      // glow: true,
+      // style: {
+      //   filter: 'drop-shadow(0 0 20px #39FF14)'
+      // }
     },
   ],
   edges: [
@@ -101,10 +105,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "close",
       label: "grid signed",
       labelPos: { x: 210, y: 75 },
-      color: "#66FCF1", // Lighter neon blue edge
-       style: {
-        filter: 'drop-shadow(0 0 6px #00FFFF)'
-      }
+      // color: "#66FCF1", // Lighter neon blue edge
+                  // style: {
+                  //   filter: 'drop-shadow(0 0 6px #00FFFF)'
+                  // }
     },
     {
       id: "e2",
@@ -112,10 +116,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "tick",
       label: "realtime settlement",
       labelPos: { x: 410, y: 75 },
-      color: "#FFFF00", // Neon yellow edge
-      style: {
-        filter: 'drop-shadow(0 0 6px #FFFF00)'
-      }
+      // color: "#FFFF00", // Neon yellow edge
+        // style: {
+        //   filter: 'drop-shadow(0 0 6px #FFFF00)'
+        // }
     },
     {
       id: "e3",
@@ -123,10 +127,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "zk",
       label: "batch commits",
       labelPos: { x: 650, y: 75 },
-      color: "#FFA500", // Neon orange edge replacing purple
-      style: {
-        filter: 'drop-shadow(0 0 6px #FFA500)'
-      }
+      // color: "#FFA500", // Neon orange edge replacing purple
+      // style: {
+      //   filter: 'drop-shadow(0 0 6px #FFA500)'
+      // }
     },
     {
       id: "e4",
@@ -134,10 +138,10 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "claim",
       label: "sent to solana",
       labelPos: { x: 890, y: 75 },
-      color: "#39FF14", // Neon green edge
-      style: {
-        filter: 'drop-shadow(0 0 8px #39FF14)'
-      }
+      // color: "#39FF14", // Neon green edge
+      // style: {
+      //   filter: 'drop-shadow(0 0 8px #39FF14)'
+      // }
     },
   ],
   steps: [
