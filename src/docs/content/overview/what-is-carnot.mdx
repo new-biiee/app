@@ -25,13 +25,14 @@ Without ZK, you'd have to trust the operator for: correct price recording, hones
 | JUP/USDT | Coming Soon |
 | SOL/USDT | Binance Futures aggTrade + Pyth |
 
-## What's Open Source
+## Open Source Repositories
 
 - **carnot-circuit** — SP1 zkVM Rust circuit, all 28 settlement constraints. Re-run the prover on any batch to verify outcomes.
 - **carnot-programs** — Anchor/Rust Solana program (`carnot_engine`) at `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`.
 - **carnot-sdk** — TypeScript SDK: PDA derivation, IDL types, protocol constants, Pyth feed IDs.
+- **carnot-keeper** — Perissioned (for now) bot that polls pending batches, invokes SP1 prover, submits proofs to Solana.
 
-The backend, keeper bot, and frontend are proprietary. On-chain and cryptographic components are fully transparent.
+The backend and frontend are proprietary. On-chain and cryptographic components are fully transparent.
 
 ## Pricing Status
 
@@ -39,4 +40,4 @@ The current deployment uses a pre-calibrated, volatility-regime-aware reward rat
 
 ---
 
-**Next:** [How It Works](/documentation/overview/how-it-works) · [Architecture](/documentation/overview/architecture) · [Quickstart](/documentation/getting-started/quickstart)
+**Next:** [How It Works](/documentation/overview/how-it-works) · [Glossary](/documentation/overview/glossary) · [Installation](/documentation/getting-started/installation)

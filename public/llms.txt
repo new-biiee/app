@@ -25,8 +25,6 @@
 - [Risk Model](https://carnot.finance/documentation/fairness/risk-model)
 - [First Integration](https://carnot.finance/documentation/getting-started/first-integration)
 - [Installation](https://carnot.finance/documentation/getting-started/installation)
-- [Quickstart](https://carnot.finance/documentation/getting-started/quickstart)
-- [Architecture](https://carnot.finance/documentation/overview/architecture)
 - [Glossary](https://carnot.finance/documentation/overview/glossary)
 - [How It Works](https://carnot.finance/documentation/overview/how-it-works)
 - [What is Carnot](https://carnot.finance/documentation/overview/what-is-carnot)

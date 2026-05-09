@@ -1175,7 +1175,7 @@ React SPA, NestJS + Socket.IO, databases, Kafka, worker & keeper, SP1, and `carn
 
 <DocsSystemArchitectureDiagram />
 
-**Also covered in:** [Architecture](/documentation/overview/architecture), [Backend Architecture](/documentation/backend/architecture)
+**Also covered in:** [Backend Architecture](/documentation/backend/architecture)
 
 ---
 
@@ -1917,147 +1917,6 @@ console.log('Vault PDA:', vaultPda.toBase58());
 
 
 ================================================================================
-# Quickstart
-URL: https://carnot.finance/documentation/getting-started/quickstart
-================================================================================
-# Quickstart
-
-Get from zero to your first settled trade in under 5 minutes.
-
-## Prerequisites
-
-- Node.js 18+
-- Solana wallet (Phantom or Backpack)
-- USDT (SPL) on the target network
-- Carnot API endpoint (devnet or mainnet)
-
----
-
-## Step 1 — Install the SDK
-
-```bash
-npm install @carnot/sdk
-```
-
-The SDK provides PDA derivation helpers, TypeScript types, the program IDL, and protocol constants.
-
----
-
-## Step 2 — Connect Wallet and Deposit USDT
-
-Open the Carnot app, connect your wallet, and navigate to **Account → Deposit**. This calls `trader_deposit` on `carnot_engine` and increases your on-chain vault balance in a `trader_account` PDA unique to your wallet. Withdraw anytime via **Account → Withdraw**.
-
----
-
-## Step 3 — Fetch the Price Grid
-
-```bash
-GET /api/grid?market=BTC_USDT
-```
-
-Each cell in the response includes:
-- `band`: `{ lower, upper }` in USDT
-- `window_start` / `window_end`: Unix timestamps (5-second span)
-- `reward_rate_bps`: payout multiplier in basis points (e.g., `15000` = 1.5×)
-- `signature`: HMAC-SHA256 committing all fields before the window opened
-
----
-
-## Step 4 — Place a Trade
-
-```bash
-POST /api/orders
-{
-  "market": "BTC_USDT",
-  "cell": { ...cell data including signature... },
-  "stake_usdt": 10,
-  "direction": "IN"
-}
-```
-
-You're predicting the settlement candle close falls **inside** the band when the 5-second window ends. The backend validates the cell signature, reserves your stake, and creates an order with status `PENDING`.
-
----
-
-## Step 5 — Watch the Outcome
-
-At `window_end`, the backend evaluates the 5-second OHLC candle's **close** against the band:
-
-- Close **inside** $[\text{lower}, \text{upper}]$ → **WIN** — receive `stake × reward_rate_bps / 10000`
-- Close **outside** → **LOSS** — stake goes to the vault
-
-Poll `GET /api/orders/user` or watch the `orderResult` Socket.IO event.
-
----
-
-## Step 6 — Claim Winnings After Batch Settlement
-
-Outcomes are real-time; payouts are processed in **1-minute batches** (the keeper aggregates each minute and publishes on-chain). Once the keeper generates a ZK proof and the `batch_receipt` PDA is on-chain:
-
-1. Fetch your Merkle proof from the backend
-2. Submit `distribute_winnings` with the proof
-3. USDT transfers from vault to your wallet
-
-The app handles this via the **Claim Winnings** UI.
-
----
-
-**Next:** [Installation](/documentation/getting-started/installation) · [First Integration](/documentation/getting-started/first-integration) · [How It Works](/documentation/overview/how-it-works)
-
-
-================================================================================
-# Architecture
-URL: https://carnot.finance/documentation/overview/architecture
-================================================================================
-import { DocsSystemArchitectureDiagram } from "../../components/WorkflowEmbeds";
-
-# Architecture
-
-<DocsSystemArchitectureDiagram />
-
----
-
-## Packages
-
-| Package | Role | Open Source |
-|---------|------|-------------|
-| `carnot-frontend` | Vite/React SPA — price grid UI, wallet integration, trade placement, docs | No |
-| `carnot-backend` | NestJS API — order management, real-time price processing, batch worker, settlement coordination | No |
-| `carnot-keeper` | Node.js bot — polls pending batches, invokes SP1 prover, submits proofs to Solana | No |
-| `carnot-sdk` | TypeScript library — PDA derivation, IDL types, protocol constants, Pyth feed IDs | **Yes** |
-| `carnot-programs` | Anchor/Rust Solana program — vault, deposits, ZK settlement verification, payout distribution | **Yes** |
-| `carnot-circuit` | SP1 zkVM Rust circuit — all 28 settlement constraints, Groth16 proving | **Yes** |
-
----
-
-## Auth Model
-
-| Caller | Endpoint Group | Auth Method |
-|--------|---------------|-------------|
-| Frontend | `/api/*` (user-facing) | JWT Bearer (EVM wallet signature challenge) |
-| Keeper | `/v1/settlement/*` | `X-API-KEY` header |
-| Keeper | `/internal/batch/*` | Bearer token |
-
-Users can't impersonate the keeper, and the keeper can't act on behalf of users. Internal batch endpoints (raw order data) are not exposed on the public API surface.
-
----
-
-## Infrastructure
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| PostgreSQL 15 | 5437 | Orders, batches, accounts |
-| Redis 7.x | 6381 | Rate limiting, session data |
-| Kafka 7.3.2 | 39092 | Price tick fan-out to ClickHouse |
-| ClickHouse 23.8 | 8124 | OHLC candle storage for batch assembly |
-| MinIO | 32126–32127 | ZK proof artifacts, batch data archives |
-
----
-
-**Next:** [Glossary](/documentation/overview/glossary)
-
-
-================================================================================
 # Glossary
 URL: https://carnot.finance/documentation/overview/glossary
 ================================================================================
@@ -2155,7 +2014,7 @@ The ZK circuit enforces that settlement prices stay within 2% of Pyth. Any diver
 
 ---
 
-**Next:** [Architecture](/documentation/overview/architecture)
+**Next:** [Glossary](/documentation/overview/glossary)
 
 
 ================================================================================
@@ -2189,13 +2048,14 @@ Without ZK, you'd have to trust the operator for: correct price recording, hones
 | JUP/USDT | Coming Soon |
 | SOL/USDT | Binance Futures aggTrade + Pyth |
 
-## What's Open Source
+## Open Source Repositories
 
 - **carnot-circuit** — SP1 zkVM Rust circuit, all 28 settlement constraints. Re-run the prover on any batch to verify outcomes.
 - **carnot-programs** — Anchor/Rust Solana program (`carnot_engine`) at `carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS`.
 - **carnot-sdk** — TypeScript SDK: PDA derivation, IDL types, protocol constants, Pyth feed IDs.
+- **carnot-keeper** — Perissioned (for now) bot that polls pending batches, invokes SP1 prover, submits proofs to Solana.
 
-The backend, keeper bot, and frontend are proprietary. On-chain and cryptographic components are fully transparent.
+The backend and frontend are proprietary. On-chain and cryptographic components are fully transparent.
 
 ## Pricing Status
 
@@ -2203,7 +2063,7 @@ The current deployment uses a pre-calibrated, volatility-regime-aware reward rat
 
 ---
 
-**Next:** [How It Works](/documentation/overview/how-it-works) · [Architecture](/documentation/overview/architecture) · [Quickstart](/documentation/getting-started/quickstart)
+**Next:** [How It Works](/documentation/overview/how-it-works) · [Glossary](/documentation/overview/glossary) · [Installation](/documentation/getting-started/installation)
 
 
 ================================================================================

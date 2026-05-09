@@ -16,7 +16,6 @@ export const NAV: NavSection[] = [
     pages: [
       { title: "What is Carnot", href: "/documentation/overview/what-is-carnot" },
       { title: "How It Works", href: "/documentation/overview/how-it-works" },
-      { title: "Architecture", href: "/documentation/overview/architecture" },
       { title: "Glossary", href: "/documentation/overview/glossary" },
     ],
   },
@@ -24,7 +23,6 @@ export const NAV: NavSection[] = [
     title: "Getting Started",
     slug: "getting-started",
     pages: [
-      { title: "Quickstart", href: "/documentation/getting-started/quickstart" },
       { title: "Installation", href: "/documentation/getting-started/installation" },
       { title: "First Integration", href: "/documentation/getting-started/first-integration" },
     ],

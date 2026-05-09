@@ -1,57 +1,80 @@
 import type { WorkflowConfig } from "./WorkflowCore";
 
-/** Diagram A — Trade-to-payout lifecycle (user / LP perspective) */
+/** Diagram A — Trade-to-payout lifecycle (user / LP perspective, neon theme) */
 export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
   title: "Trade-to-Payout Lifecycle",
   subtitle: "user-lifecycle.workflow",
-  accentColor: "#34D399",
+  // Neon green accent
+  accentColor: "#39FF14", // Neon green
   labelScale: 1.05,
   width: 1120,
   height: 260,
   nodes: [
     {
       id: "bet",
-      label: "Place Bet\nStake locked",
+      label: "User Places Bet\nStake locked",
       x: 90,
       y: 120,
       w: 150,
       h: 64,
       shape: "rounded",
-      color: "#60A5FA",
-      fill: "#60A5FA",
+      // Neon blue
+      color: "#00FFFF",
+      fill: "#00FFFF",
+      glow: true, // if supported by renderer
       processing: true,
+      style: {
+        filter: 'drop-shadow(0 0 16px #00FFFF)' // optional for neon effect
+      }
     },
     {
       id: "close",
-      label: "5s Window\nCloses",
+      label: "Cell Closes\n(5s Window)",
       x: 300,
       y: 120,
       w: 140,
       h: 60,
       shape: "rounded",
-      color: "#FBBF24",
+      // Neon yellow
+      color: "#FFFF00",
+      fill: "#FFFF00",
+      glow: true,
+      style: {
+        filter: 'drop-shadow(0 0 12px #FFFF00)'
+      }
     },
     {
       id: "tick",
-      label: "aggTrade Tick\nWin / Loss",
+      label: "Win/Loss Decision\n(Mathematical Models)",
       x: 530,
       y: 120,
       w: 160,
       h: 60,
       shape: "rounded",
-      color: "#22D3EE",
-      fill: "#22D3EE",
+      // Coral color for Win / Loss
+      color: "#FF7F50", // Coral
+      fill: "#FF7F50", // Coral
       processing: true,
+      glow: true,
+      style: {
+        filter: 'drop-shadow(0 0 16px #FF7F50)'
+      }
     },
     {
       id: "zk",
-      label: "1m ZK Proof\n→ Solana",
+      label: "30-sec ZK Proof\n→ Solana",
       x: 770,
       y: 120,
       w: 170,
       h: 64,
       shape: "rounded",
-      color: "#A78BFA",
+      // Neon orange replacing purple
+      color: "#FFA500",
+      fill: "#FFA500",
+      glow: true,
+      style: {
+        filter: 'drop-shadow(0 0 16px #FFA500)'
+      }
     },
     {
       id: "claim",
@@ -61,9 +84,14 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       w: 170,
       h: 64,
       shape: "rounded",
-      color: "#34D399",
-      fill: "#34D399",
+      // Neon green
+      color: "#39FF14",
+      fill: "#39FF14",
       processing: true,
+      glow: true,
+      style: {
+        filter: 'drop-shadow(0 0 20px #39FF14)'
+      }
     },
   ],
   edges: [
@@ -73,13 +101,21 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "close",
       label: "grid signed",
       labelPos: { x: 210, y: 75 },
+      color: "#66FCF1", // Lighter neon blue edge
+       style: {
+        filter: 'drop-shadow(0 0 6px #00FFFF)'
+      }
     },
     {
       id: "e2",
       from: "close",
       to: "tick",
-      label: "real-time",
+      label: "realtime settlement",
       labelPos: { x: 410, y: 75 },
+      color: "#FFFF00", // Neon yellow edge
+      style: {
+        filter: 'drop-shadow(0 0 6px #FFFF00)'
+      }
     },
     {
       id: "e3",
@@ -87,13 +123,21 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       to: "zk",
       label: "batch commits",
       labelPos: { x: 650, y: 75 },
+      color: "#FFA500", // Neon orange edge replacing purple
+      style: {
+        filter: 'drop-shadow(0 0 6px #FFA500)'
+      }
     },
     {
       id: "e4",
       from: "zk",
       to: "claim",
-      label: "root on-chain",
+      label: "sent to solana",
       labelPos: { x: 890, y: 75 },
+      color: "#39FF14", // Neon green edge
+      style: {
+        filter: 'drop-shadow(0 0 8px #39FF14)'
+      }
     },
   ],
   steps: [

@@ -30,11 +30,11 @@ const CORE_FEATURES = [
     id: "price",
     title: "Real-Time Price Feed and Order Settlement",
     summary:
-      "Binance BTCUSDT ticks stream through PriceService and drive immediate order outcome checks over WebSocket.",
+      "We use Binance real time futures aggTrade ticks to stream through PriceService to trigger real-time order checks over WebSocket.",
     bullets: [
       "Ingests Binance WebSocket aggTrade ticks continuously.",
       "Evaluates active 5-second orders on each tick for win/loss.",
-      "Broadcasts market updates and order results to clients through Socket.IO.",
+      "Broadcasts market updates and order results to clients via websocket",
     ],
     icon: Waves,
   },
@@ -76,13 +76,13 @@ const CORE_FEATURES = [
   },
   {
     id: "architecture",
-    title: "System Architecture (FE to Chain)",
+    title: "System Architecture",
     summary:
       "End-to-end runtime map from frontend and keeper access paths through backend services, storage, prover, and Solana settlement.",
     bullets: [
-      "Frontend hits Backend API via REST/JWT and Socket.IO/WSS channels.",
-      "Keeper bot uses X-API-KEY and internal bearer routes, then settles on Solana.",
-      "Backend/Worker data plane spans PostgreSQL, Redis sessions/rate limits, and ClickHouse OHLC queries.",
+      "Frontend securely connects via REST/JWT and real-time WebSocket channels.",
+      "Backend and Worker coordinate order batching, proof generation, and settlement processing.",
+      "Keeper bot uses X-API-KEY and internal bearer routes to submit proofs on Solana.",
     ],
     icon: Cpu,
   },

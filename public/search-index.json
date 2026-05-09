@@ -144,18 +144,6 @@
     "body": "Installation Install the SDK Peer dependencies: -- What the SDK Exports -- Protocol Constants Constant | Value | ----------|-------| CARNOTPROGRAMID | carCrmy6qN8tRgvUp9v6JrfUuxroGrKdndUdwMMNumS | KEEPERFEEBPS | 25 | PROTOCOLFEEBPS | 100 | MINSOLVENCYRATIOBPS | 15000 | MAXUTILIZATIONBPS | 7000 | MAX"
   },
   {
-    "title": "Quickstart",
-    "href": "/documentation/getting-started/quickstart",
-    "section": "Getting Started",
-    "body": "Quickstart Get from zero to your first settled trade in under 5 minutes. Prerequisites Node.js 18+ Solana wallet (Phantom or Backpack) USDT (SPL) on the target network Carnot API endpoint (devnet or mainnet) -- Step 1 — Install the SDK The SDK provides PDA derivation helpers, TypeScript types, the p"
-  },
-  {
-    "title": "Architecture",
-    "href": "/documentation/overview/architecture",
-    "section": "Overview",
-    "body": "import { DocsSystemArchitectureDiagram } from \"../../components/WorkflowEmbeds\"; Architecture <DocsSystemArchitectureDiagram /> -- Packages Package | Role | Open Source | ---------|------|-------------| carnot-frontend | Vite/React SPA — price grid UI, wallet integration, trade placement, docs | No "
-  },
-  {
     "title": "Glossary",
     "href": "/documentation/overview/glossary",
     "section": "Overview",

@@ -239,9 +239,60 @@ export const Header: React.FC<{
   };
 
   useEffect(() => {
-    handleLogin();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, address, isDemoMode]);
+    let cancelled = false;
+
+    const validateStoredSession = async () => {
+      if (!isConnected || !address) {
+        setToken(null);
+        return;
+      }
+
+      const storedToken = localStorage.getItem("token");
+      const storedAddress = localStorage.getItem("wallet-address");
+
+      if (storedAddress && storedAddress !== address) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("wallet-address");
+        promptedAddress.current = null;
+        setToken(null);
+        return;
+      }
+
+      if (!storedToken || storedAddress !== address) {
+        promptedAddress.current = null;
+        setToken(null);
+        return;
+      }
+
+      try {
+        const authCheck = await fetch(`${BACKEND_URL}/api/auth/wss-key`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+
+        if (cancelled) return;
+
+        if (authCheck.ok) {
+          setToken(storedToken);
+          return;
+        }
+      } catch (error) {
+        console.error("Stored session validation failed:", error);
+      }
+
+      if (!cancelled) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("wallet-address");
+        promptedAddress.current = null;
+        setToken(null);
+      }
+    };
+
+    validateStoredSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, address]);
 
   useEffect(() => {
     let socket: Socket | null = null;

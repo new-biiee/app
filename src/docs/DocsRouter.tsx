@@ -56,7 +56,7 @@ export function DocsRouter() {
     // Redirect to first page of the section
     const sectionFirstPages: Record<string, string> = {
       overview: "what-is-carnot",
-      "getting-started": "quickstart",
+      "getting-started": "installation",
       "core-mechanics": "trade-lifecycle",
       fairness: "overview",
       "zk-settlement": "overview",
