@@ -11,9 +11,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:api": "orval",
-    "check-links": "tsx scripts/check-links.ts",
-    "build-search-index": "tsx scripts/build-search-index.ts",
-    "build-llms-txt": "tsx scripts/build-llms-txt.ts"
+    "check-links": "npx tsx scripts/check-links.ts",
+    "build-search-index": "npx tsx scripts/build-search-index.ts",
+    "build-llms-txt": "npx tsx scripts/build-llms-txt.ts"
   },
   "dependencies": {
     "@carnot-zk/sdk": "^0.1.6",

@@ -29,4 +29,13 @@ export default defineConfig({
     }),
     svgr(),
   ],
+  resolve: {
+    alias: {
+      mermaid: "mermaid/dist/mermaid.core.mjs",
+    },
+  },
+  optimizeDeps: {
+    include: ["date-fns"],
+    exclude: ["date-fns/esm"],
+  },
 });

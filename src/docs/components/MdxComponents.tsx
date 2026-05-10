@@ -31,8 +31,8 @@ function MermaidDiagram({ code }: { code: string }) {
     if (!ref.current) return;
     mermaid
       .render(id.current, code)
-      .then(({ svg }) => {
-        if (ref.current) ref.current.innerHTML = svg;
+      .then((result: { svg: string }) => {
+        if (ref.current) ref.current.innerHTML = result.svg;
       })
       .catch(() => {
         if (ref.current)

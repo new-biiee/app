@@ -231,85 +231,85 @@ const ZKRoadmap: React.FC<{ pageRef: React.RefObject<HTMLDivElement | null> }> =
   );
 };
 
-const SettlementConstraintsCards: React.FC = () => {
-  const constraints = [
-    {
-      group: "A1-A5",
-      title: "Trade Validity",
-      detail:
-        "Confirms commitments are well-formed, multiplier bounds are valid, and trade windows are correctly ordered.",
-    },
-    {
-      group: "B1-B6",
-      title: "OHLC Validity",
-      detail:
-        "Checks candle ordering and consistency against trusted oracle checkpoints to prevent malformed market context.",
-    },
-    {
-      group: "C1-C4",
-      title: "Outcome Correctness",
-      detail:
-        "Recomputes directional outcomes and payout values so winners and losers are derived from deterministic rules.",
-    },
-    {
-      group: "D1-D6",
-      title: "Pool Solvency",
-      detail:
-        "Validates net payout and fee accounting to ensure settlement never pushes the pool into insolvency.",
-    },
-    {
-      group: "E1",
-      title: "Commitment Integrity",
-      detail:
-        "Anchors the complete payout set to a Merkle root, allowing auditable post-settlement claims.",
-    },
-    {
-      group: "F1-F3",
-      title: "Uniqueness Guarantees",
-      detail:
-        "Rejects duplicate trade identifiers and zero-stake anomalies to preserve one-trade-one-outcome correctness.",
-    },
-  ] as const;
+// const SettlementConstraintsCards: React.FC = () => {
+//   const constraints = [
+//     {
+//       group: "A1-A5",
+//       title: "Trade Validity",
+//       detail:
+//         "Confirms commitments are well-formed, multiplier bounds are valid, and trade windows are correctly ordered.",
+//     },
+//     {
+//       group: "B1-B6",
+//       title: "OHLC Validity",
+//       detail:
+//         "Checks candle ordering and consistency against trusted oracle checkpoints to prevent malformed market context.",
+//     },
+//     {
+//       group: "C1-C4",
+//       title: "Outcome Correctness",
+//       detail:
+//         "Recomputes directional outcomes and payout values so winners and losers are derived from deterministic rules.",
+//     },
+//     {
+//       group: "D1-D6",
+//       title: "Pool Solvency",
+//       detail:
+//         "Validates net payout and fee accounting to ensure settlement never pushes the pool into insolvency.",
+//     },
+//     {
+//       group: "E1",
+//       title: "Commitment Integrity",
+//       detail:
+//         "Anchors the complete payout set to a Merkle root, allowing auditable post-settlement claims.",
+//     },
+//     {
+//       group: "F1-F3",
+//       title: "Uniqueness Guarantees",
+//       detail:
+//         "Rejects duplicate trade identifiers and zero-stake anomalies to preserve one-trade-one-outcome correctness.",
+//     },
+//   ] as const;
 
-  return (
-    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
-      {constraints.map((item) => (
-        <m.div
-          key={item.group}
-          whileHover={{ y: -4 }}
-          transition={{ type: "spring", stiffness: 320, damping: 24 }}
-          className="rounded-2xl border p-5"
-          style={{
-            background:
-              "linear-gradient(165deg, rgba(18, 37, 43, 0.84) 0%, rgba(10, 25, 38, 0.76) 58%, rgba(9, 24, 18, 0.64) 100%)",
-            borderColor: "rgba(62, 244, 255, 0.24)",
-            boxShadow:
-              "0 12px 34px rgba(0,0,0,0.35), inset 0 1px 0 rgba(62, 244, 255, 0.08), inset 0 -1px 0 rgba(46, 189, 133, 0.08)",
-          }}
-        >
-          <p
-            className="text-[10px] uppercase tracking-[0.2em] font-bold mb-2"
-            style={{ color: "#7AA8B5", fontFamily: MONO_FONT }}
-          >
-            Constraint Group {item.group}
-          </p>
-          <h4
-            className="text-lg font-bold mb-3"
-            style={{ fontFamily: DISPLAY_FONT }}
-          >
-            {item.title}
-          </h4>
-          <p
-            className="text-sm text-white/75 leading-relaxed"
-            style={{ fontFamily: MONO_FONT }}
-          >
-            {item.detail}
-          </p>
-        </m.div>
-      ))}
-    </div>
-  );
-};
+//   return (
+//     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+//       {constraints.map((item) => (
+//         <m.div
+//           key={item.group}
+//           whileHover={{ y: -4 }}
+//           transition={{ type: "spring", stiffness: 320, damping: 24 }}
+//           className="rounded-2xl border p-5"
+//           style={{
+//             background:
+//               "linear-gradient(165deg, rgba(18, 37, 43, 0.84) 0%, rgba(10, 25, 38, 0.76) 58%, rgba(9, 24, 18, 0.64) 100%)",
+//             borderColor: "rgba(62, 244, 255, 0.24)",
+//             boxShadow:
+//               "0 12px 34px rgba(0,0,0,0.35), inset 0 1px 0 rgba(62, 244, 255, 0.08), inset 0 -1px 0 rgba(46, 189, 133, 0.08)",
+//           }}
+//         >
+//           <p
+//             className="text-[10px] uppercase tracking-[0.2em] font-bold mb-2"
+//             style={{ color: "#7AA8B5", fontFamily: MONO_FONT }}
+//           >
+//             Constraint Group {item.group}
+//           </p>
+//           <h4
+//             className="text-lg font-bold mb-3"
+//             style={{ fontFamily: DISPLAY_FONT }}
+//           >
+//             {item.title}
+//           </h4>
+//           <p
+//             className="text-sm text-white/75 leading-relaxed"
+//             style={{ fontFamily: MONO_FONT }}
+//           >
+//             {item.detail}
+//           </p>
+//         </m.div>
+//       ))}
+//     </div>
+//   );
+// };
 
 export const ZKComponent: React.FC<{ pageRef: React.RefObject<HTMLDivElement | null> }> = ({ pageRef }) => {
   return (
