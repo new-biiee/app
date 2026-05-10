@@ -12,11 +12,7 @@ import {
 import {
   PricingEngineWorkflow,
   SystemArchitectureWorkflow,
-  VolatilityEngineWorkflow,
-  PricingPipelineWorkflow,
-  QuoterWorkflow,
   BarrierCorrectionWorkflow,
-  RiskManagementWorkflow,
   ZkSettlementProofWorkflow,
 } from "./WorkflowDiagrams";
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useGameStore, type CellData } from "../../../store/store";
+import { useGameStore } from "../../../store/store";
 import { format } from "date-fns";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
