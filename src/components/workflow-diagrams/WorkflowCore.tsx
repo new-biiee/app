@@ -24,7 +24,7 @@ const getSVGIcon = (
     height: size * 0.6,
   };
 
-  if(type === "solana") return <SolanaSVG {...defalutProps} />
+  if (type === "solana") return <SolanaSVG {...defalutProps} />
   if (type === "postgres") return <PostgresSVG {...defalutProps} />
   if (type === "approver") return <ApproverSVG {...defalutProps} />
   if (type === "backend") return <BackendSVG {...defalutProps} />
@@ -161,7 +161,7 @@ const IconNode: React.FC<{
         cx={x}
         cy={y}
         r={size / 1.9}
-        fill={color ? color + "25" : "transparent" }
+        fill={color ? color + "25" : "transparent"}
         stroke={borderColor}
         strokeWidth={2}
       />
@@ -319,7 +319,7 @@ const WorkflowNode: React.FC<{
       )}
       {processing && (
         <g opacity={0.9}>
-            <circle
+          <circle
             cx={x + w / 2 - 24}
             cy={y - h / 2 + 16}
             r={6}
@@ -463,7 +463,7 @@ const AnimatedEdge: React.FC<AnimatedEdgeProps> = ({
         stroke={color}
         strokeWidth={2}
         // strokeDasharray="22 10"
-        opacity={active ? 1 : 0.55}
+        opacity={active ? 1 : 0.65}
         strokeLinecap="round"
       >
         <animate
@@ -499,7 +499,7 @@ const AnimatedEdge: React.FC<AnimatedEdgeProps> = ({
           y={labelY}
           textAnchor="middle"
           fontSize={10 * labelScale}
-          fill={active ? "white" : "#666"}
+          fill={active ? "cyan" : "#b5b5b5"}
           fontFamily="'JetBrains Mono',monospace"
           fontWeight={active ? "700" : "500"}
           className="transition-all duration-300"
@@ -598,9 +598,19 @@ const WorkflowDiagram: React.FC<{
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <text
-                    x={2}
+                  <rect
+                    x={gb.x}
                     y={gb.y}
+                    width={gb.w}
+                    height={gb.h}
+                    rx={14}
+                    fill={`${gb.color}05`}
+                    stroke={`${gb.color}30`}
+                    strokeWidth={1.5}
+                  />
+                  <text
+                    x={gb.x + 24}
+                    y={gb.y + 28}
                     textAnchor="start"
                     fontSize={14 * labelScale}
                     fill={gb.color}
@@ -1120,7 +1130,7 @@ export const PRICING_ENGINE_CONFIG: WorkflowConfig = {
       w: 90,
       h: 52,
       shape: "rounded",
-      color: "#FBBF24",
+      color: "#fffc40",
     },
     {
       id: "lam",
@@ -1213,7 +1223,7 @@ export const PRICING_ENGINE_CONFIG: WorkflowConfig = {
       from: "sobol",
       to: "paths",
       label: "low-discrepancy draws",
-      labelPos: { x: 518, y: 248 },
+      labelPos: { x: 608, y: 198 },
     },
     {
       id: "e5",
@@ -1625,7 +1635,7 @@ export const RISK_MANAGEMENT_CONFIG: WorkflowConfig = {
       w: 128,
       h: 58,
       shape: "rounded",
-      color: "#34D399",
+      color: "#37ffb6",
     },
     {
       id: "tighten",
@@ -1733,16 +1743,16 @@ export const ZK_SETTLEMENT_PROOF_CONFIG: WorkflowConfig = {
   width: 1120,
   height: 580,
   groupBoxes: [
-    { label: "Private Inputs", x: 40, y: 15, w: 240, h: 320, color: "#60A5FA" },
+    { label: "Private Inputs", x: 40, y: 105, w: 240, h: 420, color: "#60A5FA" },
     {
       label: "SP1 Circuit (Rust guest)",
-      x: 340,
-      y: 40,
-      w: 440,
+      x: 400,
+      y: 60,
+      w: 320,
       h: 420,
       color: "#F472B6",
     },
-    { label: "Public Output", x: 840, y: 65, w: 240, h: 220, color: "#34D399" },
+    { label: "Public Output", x: 800, y: 105, w: 240, h: 180, color: "#34D399" },
   ],
   nodes: [
     {
@@ -1917,7 +1927,7 @@ export const ZK_SETTLEMENT_PROOF_CONFIG: WorkflowConfig = {
       from: "c_d",
       to: "out_hash",
       label: "preimage -> hash",
-      labelPos: { x: 778, y: 272 },
+      labelPos: { x: 810, y: 362 },
       curved: true,
       cp: { x: 700, y: 400 },
     },
@@ -1956,56 +1966,56 @@ export const FULL_SYSTEM_OVERVIEW_CONFIG: WorkflowConfig = {
   width: 1000,
   height: 600,
   groupBoxes: [
-    { label: "Backend · NestJS", x: 185, y: 20, w: 620, h: 490, color: "#22D3EE" },
-    { label: "Keeper", x: 880, y: 40, w: 220, h: 390, color: "#F472B6" },
+    { label: "Backend · NestJS", x: 215, y: 35, w: 520, h: 480, color: "#22D3EE" },
+    { label: "Keeper", x: 760, y: 35, w: 200, h: 480, color: "#F472B6" },
   ],
   nodes: [
-    { id: "user",     label: "User",           x: 80,  y: 90,  w: 52,  h: 52,  shape: "circle",  color: "#60A5FA", icon: "👤" },
-    { id: "pyth",     label: "Pyth Oracle",    x: 140,  y: 310, w: 52,  h: 52,  shape: "network", color: "#A78BFA" },
-    { id: "program",  label: "carnot_engine",  x: 80,  y: 470, w: 52,  h: 52,  shape: "network", color: "#818CF8" },
+    { id: "user", label: "User", x: 80, y: 90, w: 52, h: 52, shape: "circle", color: "#60A5FA", icon: "👤" },
+    { id: "pyth", label: "Pyth Oracle", x: 140, y: 310, w: 52, h: 52, shape: "network", color: "#A78BFA" },
+    { id: "program", label: "carnot_engine", x: 80, y: 470, w: 52, h: 52, shape: "network", color: "#818CF8" },
     // Backend services
-    { id: "b_price",  label: "Price",      x: 300, y: 200, w: 120, h: 48, shape: "rounded", color: "#FBBF24" },
-    { id: "b_orders", label: "Orders",     x: 572, y: 140, w: 120, h: 48, shape: "rounded", color: "#22D3EE", processing: true },
+    { id: "b_price", label: "Price", x: 300, y: 200, w: 120, h: 48, shape: "rounded", color: "#FBBF24" },
+    { id: "b_orders", label: "Orders", x: 572, y: 140, w: 120, h: 48, shape: "rounded", color: "#22D3EE", processing: true },
     { id: "b_settle", label: "Settlement", x: 340, y: 290, w: 130, h: 48, shape: "rounded", color: "#34D399" },
-    { id: "b_risk",   label: "Risk",       x: 578, y: 300, w: 100, h: 48, shape: "rounded", color: "#F87171" },
-    { id: "b_pay",    label: "Payments",   x: 365, y: 400, w: 120, h: 48, shape: "rounded", color: "#F6AD55" },
+    { id: "b_risk", label: "Risk", x: 578, y: 300, w: 100, h: 48, shape: "rounded", color: "#F87171" },
+    { id: "b_pay", label: "Payments", x: 365, y: 400, w: 120, h: 48, shape: "rounded", color: "#F6AD55" },
     // Keeper pipeline
-    { id: "k_watch",  label: "Watcher",   x: 892, y: 132, w: 120, h: 48, shape: "rounded", color: "#F472B6" },
-    { id: "k_prove",  label: "Prover",    x: 892, y: 248, w: 120, h: 48, shape: "rounded", color: "#FB923C" },
-    { id: "k_submit", label: "Submitter", x: 892, y: 364, w: 130, h: 48, shape: "rounded", color: "#6EE7B7" },
+    { id: "k_watch", label: "Watcher", x: 862, y: 132, w: 120, h: 48, shape: "rounded", color: "#F472B6" },
+    { id: "k_prove", label: "Prover", x: 862, y: 248, w: 120, h: 48, shape: "rounded", color: "#FB923C" },
+    { id: "k_submit", label: "Submitter", x: 862, y: 364, w: 130, h: 48, shape: "rounded", color: "#6EE7B7" },
   ],
   edges: [
     // External entry
-    { id: "e1", from: "user",     to: "b_orders", label: "REST / WS",   labelPos: { x: 316, y: 99  } },
-    { id: "e2", from: "pyth",     to: "b_price",  label: "price feed",  labelPos: { x: 182, y: 246 } },
+    { id: "e1", from: "user", to: "b_orders", label: "REST / WS", labelPos: { x: 316, y: 99 } },
+    { id: "e2", from: "pyth", to: "b_price", label: "price feed", labelPos: { x: 182, y: 246 } },
     // Internal Backend pipeline
-    { id: "e3", from: "b_price",  to: "b_orders", label: "ticks",       labelPos: { x: 436, y: 160 } },
-    { id: "e4", from: "b_orders", to: "b_settle", label: "settled",     labelPos: { x: 502, y: 214 } },
-    { id: "e5", from: "b_settle", to: "b_risk",   label: "CVaR",        labelPos: { x: 466, y: 313 } },
+    { id: "e3", from: "b_price", to: "b_orders", label: "ticks", labelPos: { x: 436, y: 160 } },
+    { id: "e4", from: "b_orders", to: "b_settle", label: "settled", labelPos: { x: 502, y: 214 } },
+    { id: "e5", from: "b_settle", to: "b_risk", label: "CVaR", labelPos: { x: 466, y: 313 } },
     // Settlement → Keeper
-    { id: "e6", from: "b_settle", to: "k_watch",  label: "batches",     labelPos: { x: 644, y: 202 }, curved: true, cp: { x: 672, y: 215 } },
+    { id: "e6", from: "b_settle", to: "k_watch", label: "batches", labelPos: { x: 644, y: 202 }, curved: true, cp: { x: 672, y: 215 } },
     // Keeper pipeline
-    { id: "e7", from: "k_watch",  to: "k_prove"  },
-    { id: "e8", from: "k_prove",  to: "k_submit" },
+    { id: "e7", from: "k_watch", to: "k_prove" },
+    { id: "e8", from: "k_prove", to: "k_submit" },
     // Keeper → Settlement confirm (dashed back-edge)
     { id: "e9", from: "k_submit", to: "b_settle", label: "confirm", dashed: true, curved: true, cp: { x: 566, y: 442 }, labelPos: { x: 666, y: 421 } },
     // Keeper → Solana Program
-    { id: "e10", from: "k_submit", to: "program", label: "ZK proof",   curved: true, cp: { x: 500, y: 518 }, labelPos: { x: 533, y: 488 } },
+    { id: "e10", from: "k_submit", to: "program", label: "ZK proof", curved: true, cp: { x: 500, y: 518 }, labelPos: { x: 533, y: 488 } },
     // Payments → Solana Program
-    { id: "e11", from: "b_pay",   to: "program",  label: "margin ops", curved: true, cp: { x: 232, y: 410 }, labelPos: { x: 243, y: 436 } },
+    { id: "e11", from: "b_pay", to: "program", label: "margin ops", curved: true, cp: { x: 232, y: 410 }, labelPos: { x: 243, y: 436 } },
     // Solana Program → User (dashed on-chain state)
-    { id: "e12", from: "program", to: "user",     label: "vault state", dashed: true, curved: true, cp: { x: 44, y: 250 }, labelPos: { x: 108, y: 190 } },
+    { id: "e12", from: "program", to: "user", label: "vault state", dashed: true, curved: true, cp: { x: 44, y: 250 }, labelPos: { x: 108, y: 190 } },
   ],
   steps: [
-    { edgeId: "e1",  desc: "User places orders and streams data via REST endpoints and Socket.IO WebSocket." },
-    { edgeId: "e2",  desc: "Pyth Oracle delivers real-time price checkpoints to the Price service." },
-    { edgeId: "e3",  desc: "Price service fans out 5-second OHLC ticks to Orders for WIN/LOSS evaluation (hot path)." },
-    { edgeId: "e4",  desc: "Orders service writes settled positions to Settlement for batch assembly (cold path)." },
-    { edgeId: "e5",  desc: "Settlement runs a CVaR 95 check through the Risk service before committing the batch." },
-    { edgeId: "e6",  desc: "Settlement forwards pending batch metadata and Merkle winner proofs to the Keeper Watcher." },
-    { edgeId: "e7",  desc: "Watcher polls closed batch windows, emits a BatchTriggerSignal, and starts the Prover." },
-    { edgeId: "e8",  desc: "Prover runs the SP1 binary (Rust) to generate a Groth16 ZK proof, then hands off to Submitter." },
-    { edgeId: "e9",  desc: "Submitter confirms the settled batch back to the Settlement service after on-chain finality." },
+    { edgeId: "e1", desc: "User places orders and streams data via REST endpoints and Socket.IO WebSocket." },
+    { edgeId: "e2", desc: "Pyth Oracle delivers real-time price checkpoints to the Price service." },
+    { edgeId: "e3", desc: "Price service fans out 5-second OHLC ticks to Orders for WIN/LOSS evaluation (hot path)." },
+    { edgeId: "e4", desc: "Orders service writes settled positions to Settlement for batch assembly (cold path)." },
+    { edgeId: "e5", desc: "Settlement runs a CVaR 95 check through the Risk service before committing the batch." },
+    { edgeId: "e6", desc: "Settlement forwards pending batch metadata and Merkle winner proofs to the Keeper Watcher." },
+    { edgeId: "e7", desc: "Watcher polls closed batch windows, emits a BatchTriggerSignal, and starts the Prover." },
+    { edgeId: "e8", desc: "Prover runs the SP1 binary (Rust) to generate a Groth16 ZK proof, then hands off to Submitter." },
+    { edgeId: "e9", desc: "Submitter confirms the settled batch back to the Settlement service after on-chain finality." },
     { edgeId: "e10", desc: "Submitter broadcasts the verify_and_settle ZK proof transaction to the Solana Program." },
     { edgeId: "e11", desc: "Payments service locks and unlocks trader margin directly on the Solana Program (deposit/withdraw)." },
     { edgeId: "e12", desc: "Solana Program emits on-chain vault state to users — PDAs, nullifier receipts, and payout proofs." },
@@ -2025,11 +2035,11 @@ export const PRICING_PIPELINE_CONFIG: WorkflowConfig = {
   width: 1380,
   height: 870,
   groupBoxes: [
-    { label: "L1 · Volatility Engine",  x: 148, y: 10,  w: 290, h: 610, color: "#FB923C" },
-    { label: "L2 · Reward Surface",     x: 488, y: 30,  w: 272, h: 310, color: "#FBBF24" },
-    { label: "L3 · Kou Barrier",        x: 488, y: 50, w: 272, h: 255, color: "#6EE7B7" },
+    { label: "L1 · Volatility Engine",  x: 148, y: 90,  w: 290, h: 520, color: "#FB923C" },
+    { label: "L2 · Reward Surface",     x: 488, y: 70,  w: 272, h: 350, color: "#FBBF24" },
+    { label: "L3 · Kou Barrier",        x: 488, y: 455, w: 272, h: 225, color: "#6EE7B7" },
     { label: "L4 · AS Quoter",          x: 818, y: 70,  w: 296, h: 650, color: "#34D399" },
-    { label: "L5 · CVaR Control",       x: 1174, y: 90, w: 186, h: 360, color: "#F87171" },
+    { label: "L5 · CVaR Control",       x: 1164, y: 90, w: 206, h: 440, color: "#F87171" },
   ],
   nodes: [
     // ── Input ──────────────────────────────────────────────────────────────
@@ -2084,13 +2094,13 @@ export const PRICING_PIPELINE_CONFIG: WorkflowConfig = {
     {
       id: "n_kou",
       label: "Kou Barrier\np=0.5  η₁/η₂",
-      x: 624, y: 495, w: 175, h: 52,
+      x: 624, y: 535, w: 175, h: 52,
       shape: "rounded", color: "#6EE7B7", processing: true,
     },
     {
       id: "n_nearfar",
       label: "Near/Far adj\nΔ applied",
-      x: 624, y: 610, w: 165, h: 52,
+      x: 624, y: 635, w: 165, h: 52,
       shape: "rounded", color: "#6EE7B7",
     },
 
@@ -2162,9 +2172,9 @@ export const PRICING_PIPELINE_CONFIG: WorkflowConfig = {
   ],
   edges: [
     // ── Feed → L1 ──────────────────────────────────────────────────────────
-    { id: "e1", from: "feed", to: "n_sigma",  label: "ticks", labelPos: { x: 140, y: 280 } },
+    { id: "e1", from: "feed", to: "n_sigma", label: "ticks", labelPos: { x: 140, y: 280 } },
     { id: "e2", from: "feed", to: "n_lambda", label: "ticks", curved: true, cp: { x: 145, y: 437 }, labelPos: { x: 160, y: 402 } },
-    { id: "e3", from: "feed", to: "n_vpin",   label: "ticks", curved: true, cp: { x: 145, y: 498 }, labelPos: { x: 175, y: 478 } },
+    { id: "e3", from: "feed", to: "n_vpin", label: "ticks", curved: true, cp: { x: 145, y: 498 }, labelPos: { x: 175, y: 478 } },
 
     // ── L1 → L2 ────────────────────────────────────────────────────────────
     { id: "e4", from: "n_sigma", to: "n_volscale", label: "σ_t", labelPos: { x: 454, y: 210 } },
@@ -2174,32 +2184,32 @@ export const PRICING_PIPELINE_CONFIG: WorkflowConfig = {
     { id: "e6", from: "n_poly", to: "n_fairrate", label: "×σ_ratio", labelPos: { x: 580, y: 316 } },
 
     // ── L1 → L3 ────────────────────────────────────────────────────────────
-    { id: "e7", from: "n_sigma",  to: "n_kou", label: "σ_t", curved: true, cp: { x: 455, y: 368 }, labelPos: { x: 408, y: 342 } },
-    { id: "e8", from: "n_lambda", to: "n_kou", label: "λ_t", labelPos: { x: 425, y: 442 } },
+    { id: "e7", from: "n_sigma", to: "n_kou", label: "σ_t", curved: true, cp: { x: 465, y: 500 }, labelPos: { x: 408, y: 350 } },
+    { id: "e8", from: "n_lambda", to: "n_kou", label: "λ_t", labelPos: { x: 405, y: 472 }, curved: true, cp: { x: 365, y: 510 } },
 
     // ── L2 → L3 ────────────────────────────────────────────────────────────
-    { id: "e9", from: "n_fairrate", to: "n_kou", label: "fair_rate", labelPos: { x: 678, y: 434 } },
+    { id: "e9", from: "n_fairrate", to: "n_kou", label: "fair_rate", labelPos: { x: 678, y: 441 } },
 
     // ── L3 internal ────────────────────────────────────────────────────────
-    { id: "e10", from: "n_kou", to: "n_nearfar", label: "P(touch)", labelPos: { x: 580, y: 552 } },
+    { id: "e10", from: "n_kou", to: "n_nearfar", label: "P(touch)", labelPos: { x: 670, y: 592 } },
 
     // ── L1 → L4 (long arcs above / below group boxes) ─────────────────────
-    { id: "e11", from: "n_sigma", to: "n_volprem",  label: "σ_t", curved: true, cp: { x: 630, y: 66 }, labelPos: { x: 630, y: 90 } },
-    { id: "e12", from: "n_vpin",  to: "n_vpinmult", label: "VPIN", curved: true, cp: { x: 630, y: 640 }, labelPos: { x: 450, y: 561 } },
+    { id: "e11", from: "n_sigma", to: "n_volprem", label: "σ_t", curved: true, cp: { x: 630, y: 66 }, labelPos: { x: 720, y: 95 } },
+    { id: "e12", from: "n_vpin", to: "n_vpinmult", label: "VPIN", curved: true, cp: { x: 630, y: 670 }, labelPos: { x: 460, y: 580 } },
 
     // ── L3 → L4 ────────────────────────────────────────────────────────────
-    { id: "e13", from: "n_nearfar", to: "n_clamp", label: "adj rate", labelPos: { x: 798, y: 576 } },
+    { id: "e13", from: "n_nearfar", to: "n_clamp", label: "adj rate", labelPos: { x: 798, y: 590 } },
 
     // ── L4 internals → Clamp ──────────────────────────────────────────────
-    { id: "e14", from: "n_volprem",  to: "n_clamp", curved: true, cp: { x: 698, y: 398 } },
-    { id: "e15", from: "n_invprem",  to: "n_clamp" },
+    { id: "e14", from: "n_volprem", to: "n_clamp", curved: true, cp: { x: 698, y: 398 } },
+    { id: "e15", from: "n_invprem", to: "n_clamp" },
     { id: "e16", from: "n_vpinmult", to: "n_clamp" },
-    { id: "e17", from: "n_regime",   to: "n_clamp" },
-    { id: "e18", from: "n_clamp",    to: "n_gridout" },
+    { id: "e17", from: "n_regime", to: "n_clamp" },
+    { id: "e18", from: "n_clamp", to: "n_gridout" },
 
     // ── L5 internal ────────────────────────────────────────────────────────
-    { id: "e19", from: "n_snap",   to: "n_cvar" },
-    { id: "e20", from: "n_cvar",   to: "n_budget" },
+    { id: "e19", from: "n_snap", to: "n_cvar" },
+    { id: "e20", from: "n_cvar", to: "n_budget" },
 
     // ── L5 → L4: CVaR feedback (dashed) ───────────────────────────────────
     {
@@ -2207,7 +2217,7 @@ export const PRICING_PIPELINE_CONFIG: WorkflowConfig = {
       from: "n_budget", to: "n_invprem",
       label: "utilization",
       dashed: true, curved: true,
-      cp: { x: 1200, y: 534 }, labelPos: { x: 1152, y: 502 },
+      cp: { x: 1200, y: 534 }, labelPos: { x: 1172, y: 502 },
     },
 
     // ── Grid Output → final output terminal ───────────────────────────────

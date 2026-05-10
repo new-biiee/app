@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { TradingGrid } from "./TradingGrid";
+import { TradingGridUpdate } from "./TradingGridUpdate"; // -- updated component with optimization
 import { useGameStore } from "../../../store/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useOrderControllerGetUserOrders } from "../../../services/queries";
@@ -194,7 +194,7 @@ export const TradingView: React.FC = () => {
       {shouldShowTradingGrid ? (
         <div className="flex-1 flex flex-col relative overflow-hidden h-full">
           {demoWinFeed ? (
-            <div className="pointer-events-none absolute right-3 top-3 z-30 sm:left-4 sm:top-4 sm:right-auto">
+            <div className="pointer-events-none absolute left-3 right-3 top-14 z-30 sm:left-3 sm:top-14 sm:right-auto">
               <div
                 key={demoWinFeed.id}
                 className="wallet-win-toast w-fit rounded-lg border px-2 py-1 sm:px-3 sm:py-2 backdrop-blur-md"
@@ -225,7 +225,7 @@ export const TradingView: React.FC = () => {
               </div>
             </div>
           ) : null}
-          <TradingGrid />
+          <TradingGridUpdate />
         </div>
       ) : (
         <motion.div

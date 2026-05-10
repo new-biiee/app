@@ -11,6 +11,7 @@ import {
   Waypoints
 } from "lucide-react";
 import { useState, useRef } from "react";
+import { EngineCoreCards } from "./EngineCore";
 
 const DISPLAY_FONT = '"Montserrat", "Inter", sans-serif';
 
@@ -315,6 +316,24 @@ export const ZKComponent: React.FC<{ pageRef: React.RefObject<HTMLDivElement | n
     <>
       <ZKRoadmap pageRef={pageRef} />
 
+      {/* The Carnot Engine: Real-time Mathematical Core */}
+      <section className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-18">
+        <h2 className="text-2xl md:text-4xl font-extrabold mb-4 md:mb-6">
+          The Carnot Engine's Real-time Mathematical Core
+        </h2>
+        <p
+          className="text-xs md:text-base text-white/75 max-w-5xl mb-6 md:mb-10"
+          style={{ fontFamily: MONO_FONT }}
+        >
+          Our backend fuses high-frequency market data with complex economic
+          models to power a fair, fast, and cryptographically verifiable
+          trading experience.
+        </p>
+        <EngineCoreCards />
+      </section>
+
+      {/* Original ZK Constraints Section - Commented Out */}
+      {/* 
       <section className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-18">
         <h2 className="text-2xl md:text-4xl font-extrabold mb-4 md:mb-6">
           Settlement Constraints - ZK Circuit
@@ -329,6 +348,7 @@ export const ZKComponent: React.FC<{ pageRef: React.RefObject<HTMLDivElement | n
         </p>
         <SettlementConstraintsCards />
       </section>
+      */}
     </>
   );
 };

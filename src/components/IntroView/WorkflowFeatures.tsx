@@ -12,6 +12,12 @@ import {
 import {
   PricingEngineWorkflow,
   SystemArchitectureWorkflow,
+  VolatilityEngineWorkflow,
+  PricingPipelineWorkflow,
+  QuoterWorkflow,
+  BarrierCorrectionWorkflow,
+  RiskManagementWorkflow,
+  ZkSettlementProofWorkflow,
 } from "./WorkflowDiagrams";
 
 import { useRef, useState, useEffect } from "react";
@@ -98,19 +104,19 @@ const WORKFLOW_TABS = [
     key: "reserve",
     label: "Proof of Reserve",
     color: BRAND.green,
-    Component: SystemArchitectureWorkflow,
+    Component: BarrierCorrectionWorkflow,
   },
   {
     key: "regime",
     label: "Regime Model",
     color: "#3ef4ff",
-    Component: SystemArchitectureWorkflow,
+    Component: ZkSettlementProofWorkflow,
   },
   {
     key: "settlement",
     label: "Settlement",
     color: "#3ef4ff",
-    Component: SystemArchitectureWorkflow,
+    Component: PricingEngineWorkflow,
   },
   {
     key: "architecture",
@@ -233,7 +239,7 @@ export const WorkflowFeatures: React.FC = () => {
         </div>
 
         <div className="flex-1 w-full">
-          <div className="flex flex-col xl:flex-row gap-5 h-full">
+          <div className="flex flex-col xl:flex-row gap-5 h-[450px]">
             <div
               className="xl:w-[360px] rounded-2xl p-5 border h-full"
               style={{
@@ -282,7 +288,7 @@ export const WorkflowFeatures: React.FC = () => {
             </div>
 
             <div
-              className="flex w-full xl:w-[800px] justify-center rounded-2xl h-full items-center overflow-hidden"
+              className="flex w-full xl:w-[800px] justify-center rounded-2xl h-full items-start overflow-hidden"
               style={{
                 // background:
                 //   "linear-gradient(160deg, rgba(7, 18, 24, 0.86) 0%, rgba(4, 10, 14, 0.8) 62%, rgba(8, 20, 16, 0.72) 100%)",

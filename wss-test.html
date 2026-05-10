@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carnot WebSocket Multi-Terminal Monitor</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            background: #080a0c;
+            color: #fff;
+            font-family: 'Monaco', 'Consolas', monospace;
+            padding: 20px;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 { color: #3ef4ff; border-bottom: 1px solid #1a1e23; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .stats-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .market-group {
+            background: #111418;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #222;
+        }
+        .market-group h2 { margin-top: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-card {
+            background: #080a0c;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #1a1e23;
+        }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; }
+        .stat-value { font-size: 16px; font-weight: bold; margin-top: 4px; color: #fff; }
+        .stat-value.highlight { color: #3ef4ff; }
+        .stat-value.danger { color: #ef4444; }
+        
+        .terminals-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            height: 500px;
+        }
+        .terminal-box {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #222;
+            overflow: hidden;
+        }
+        .terminal-header {
+            background: #111418;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #aaa;
+            display: flex; justify-content: space-between; border-bottom: 1px solid #222;
+        }
+        .terminal-content { flex: 1; padding: 10px; overflow-y: auto; font-size: 11px; }
+        
+        .log-entry { margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px solid #0a0a0a; line-height: 1.4; }
+        .price-text { color: #eab308; }
+        .grid-text { color: #06b6d4; }
+        .sys-text { color: #a855f7; }
+        .info-text { color: #3ef4ff; }
+        .error-text { color: #ef4444; }
+        .timestamp { color: #444; margin-right: 5px; }
+
+        .controls { margin-bottom: 20px; display: flex; gap: 15px; align-items: center; background: #111418; padding: 15px; border-radius: 8px; border: 1px solid #222; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 10px; color: #888; text-transform: uppercase; }
+        select {
+            background: #080a0c;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            min-width: 180px;
+            cursor: pointer;
+        }
+        button {
+            background: #3ef4ff;
+            color: #000;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            align-self: flex-end;
+        }
+        button.secondary { background: #1a1e23; color: #888; border: 1px solid #333; }
+        button:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <span>Carnot Diagnostic Hub</span>
+            <span id="connStatus" style="font-size: 12px; color: #ef4444;">DISCONNECTED</span>
+        </h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Backend Environment</label>
+                <select id="backendUrl">
+                    <option value="http://localhost:3001">Localhost (3001)</option>
+                    <option value="https://api.carnot-zk.xyz">Production (api.carnot-zk.xyz)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Market Asset</label>
+                <select id="marketId">
+                    <option value="btcusdt">BTC / USDT</option>
+                    <option value="solusdt">SOL / USDT</option>
+                </select>
+            </div>
+
+            <button onclick="connect()">Connect Diagnostics</button>
+            <button class="secondary" onclick="clearLogs()">Clear Log</button>
+        </div>
+
+        <div class="stats-section">
+            <div class="market-group">
+                <h2>Price Jitter</h2>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Last Int</div><div id="priceInterval" class="stat-value highlight">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Avg (50)</div><div id="priceAvg" class="stat-value">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Max Gap</div><div id="priceMax" class="stat-value danger">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Freq</div><div id="priceFreq" class="stat-value">--</div></div>
+                </div>
+            </div>
+            <div class="market-group">
+                <h2>Grid Performance</h2>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Last Int</div><div id="gridInterval" class="stat-value highlight">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Avg (20)</div><div id="gridAvg" class="stat-value">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Max Gap</div><div id="gridMax" class="stat-value danger">--</div></div>
+                    <div class="stat-card"><div class="stat-label">Cells</div><div id="gridSize" class="stat-value">--</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="terminals-container">
+            <div class="terminal-box">
+                <div class="terminal-header"><span>PRICE_NOW STREAM</span><span id="priceCount">0 pkts</span></div>
+                <div id="priceTerminal" class="terminal-content"></div>
+            </div>
+            <div class="terminal-box">
+                <div class="terminal-header"><span>GRID_UPDATE STREAM</span><span id="gridCount">0 pkts</span></div>
+                <div id="gridTerminal" class="terminal-content"></div>
+            </div>
+            <div class="terminal-box">
+                <div class="terminal-header"><span>SYSTEM & COMMON</span><span>LOG</span></div>
+                <div id="sysTerminal" class="terminal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        const priceStats = { lastTime: 0, intervals: [], max: 0, count: 0 };
+        const gridStats = { lastTime: 0, intervals: [], max: 0, count: 0 };
+
+        function clearLogs() {
+            document.getElementById('priceTerminal').innerHTML = '';
+            document.getElementById('gridTerminal').innerHTML = '';
+            document.getElementById('sysTerminal').innerHTML = '';
+            priceStats.max = 0; priceStats.count = 0;
+            gridStats.max = 0; gridStats.count = 0;
+        }
+
+        function addLog(terminal, msg, className) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+            entry.innerHTML = `<span class="timestamp">${time}</span> ${msg}`;
+            terminal.insertBefore(entry, terminal.firstChild);
+            if (terminal.children.length > 100) terminal.lastChild.remove();
+        }
+
+        function connect() {
+            if (socket) socket.disconnect();
+            const url = document.getElementById('backendUrl').value;
+            const market = document.getElementById('marketId').value;
+            const statusEl = document.getElementById('connStatus');
+            const sysTerm = document.getElementById('sysTerminal');
+            const priceTerm = document.getElementById('priceTerminal');
+            const gridTerm = document.getElementById('gridTerminal');
+
+            addLog(sysTerm, `Connecting to ${url}...`, "info-text");
+            socket = io(url, { transports: ['websocket', 'polling'] });
+
+            socket.on('connect', () => {
+                statusEl.innerText = 'CONNECTED'; statusEl.style.color = '#22c55e';
+                addLog(sysTerm, `Connected! Socket ID: ${socket.id}`, "info-text");
+                addLog(sysTerm, `Subscribing to: ${market}`, "sys-text");
+                socket.emit('subscribe_market', { marketId: market });
+            });
+
+            socket.on('price_now', (data) => {
+                const now = Date.now();
+                priceStats.count++;
+                document.getElementById('priceCount').innerText = `${priceStats.count} pkts`;
+                let intervalMsg = '';
+                if (priceStats.lastTime > 0) {
+                    const interval = now - priceStats.lastTime;
+                    priceStats.intervals.push(interval);
+                    if (priceStats.intervals.length > 50) priceStats.intervals.shift();
+                    if (interval > priceStats.max) priceStats.max = interval;
+                    const avg = priceStats.intervals.reduce((a,b)=>a+b, 0) / priceStats.intervals.length;
+                    document.getElementById('priceInterval').innerText = `${interval}ms`;
+                    document.getElementById('priceAvg').innerText = `${avg.toFixed(0)}ms`;
+                    document.getElementById('priceMax').innerText = `${priceStats.max}ms`;
+                    document.getElementById('priceFreq').innerText = `${(1000/avg).toFixed(1)}Hz`;
+                    intervalMsg = ` [Δ ${interval}ms]`;
+                }
+                priceStats.lastTime = now;
+                addLog(priceTerm, `PRICE: $${data.price.toFixed(4)}${intervalMsg}`, "price-text");
+            });
+
+            socket.on('grid_update', (data) => {
+                const now = Date.now();
+                gridStats.count++;
+                document.getElementById('gridCount').innerText = `${gridStats.count} pkts`;
+                const cellCount = Array.isArray(data) ? data.length : 0;
+                let intervalMsg = '';
+                if (gridStats.lastTime > 0) {
+                    const interval = now - gridStats.lastTime;
+                    gridStats.intervals.push(interval);
+                    if (gridStats.intervals.length > 20) gridStats.intervals.shift();
+                    if (interval > gridStats.max) gridStats.max = interval;
+                    const avg = gridStats.intervals.reduce((a,b)=>a+b, 0) / gridStats.intervals.length;
+                    document.getElementById('gridInterval').innerText = `${interval}ms`;
+                    document.getElementById('gridAvg').innerText = `${avg.toFixed(0)}ms`;
+                    document.getElementById('gridMax').innerText = `${gridStats.max}ms`;
+                    document.getElementById('gridSize').innerText = cellCount;
+                    intervalMsg = ` [Δ ${interval}ms]`;
+                }
+                gridStats.lastTime = now;
+                addLog(gridTerm, `GRID: Received ${cellCount} cells${intervalMsg}`, "grid-text");
+            });
+
+            socket.on('connect_error', (err) => {
+                statusEl.innerText = 'ERROR'; statusEl.style.color = '#ef4444';
+                addLog(sysTerm, `Connection Error: ${err.message}`, "error-text");
+            });
+
+            socket.on('disconnect', (reason) => {
+                statusEl.innerText = 'DISCONNECTED'; statusEl.style.color = '#ef4444';
+                addLog(sysTerm, `Disconnected: ${reason}`, "error-text");
+                priceStats.lastTime = 0; gridStats.lastTime = 0;
+            });
+        }
+    </script>
+</body>
+</html>

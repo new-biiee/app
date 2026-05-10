@@ -434,99 +434,143 @@ export const useGameStore = create<GameState>((set) => ({
   updateGrid: (newCells) =>
     set((state) => {
       const now = Date.now();
+      const cutoff = now - 60000;
+      const {
+        cells,
+        bets,
+        pendingBets,
+        betRates,
+        pendingWins,
+        modePriceStep: currentModePriceStep,
+      } = state;
+
+      // Use a fast local map for O(1) index lookups to avoid O(N) reconstruction
+      const cellMap = new Map<string, number>();
+      for (let i = 0; i < cells.length; i++) {
+        cellMap.set(cells[i].id, i);
+      }
 
       const remoteIds = new Set<string>();
-      const combinedCells = [...state.cells];
-      const combinedCellIndex = new Map(
-        combinedCells.map((cell, index) => [cell.id, index] as const),
-      );
-
+      const nextCells = [...cells];
+      let changed = false;
       let serverPriceBand: number | null = null;
-      for (const remoteCell of newCells) {
+
+      // Single pass over new cells
+      for (let i = 0; i < newCells.length; i++) {
+        const remoteCell = newCells[i];
         const id = `${remoteCell.startTs}:${remoteCell.endTs}:${remoteCell.lowerPrice}:${remoteCell.upperPrice}`;
-        const timeWindowStart = remoteCell.startTs;
-        const timeWindowEnd = remoteCell.endTs;
-        const lo = parseFloat(String(remoteCell.lowerPrice));
-        const hi = parseFloat(String(remoteCell.upperPrice));
-        if (
-          serverPriceBand == null &&
-          Number.isFinite(lo) &&
-          Number.isFinite(hi) &&
-          hi > lo
-        ) {
-          serverPriceBand = hi - lo;
-        }
-        const priceLevel = (lo + hi) / 2;
-
-        const hasBet =
-          (state.bets[id] && state.bets[id] > 0) ||
-          (state.pendingBets[id] && state.pendingBets[id] > 0);
-        const existingIdx = combinedCellIndex.get(id);
-
-        let finalMultiplier = parseFloat(remoteCell.rewardRate);
-        if (hasBet && state.betRates[id] !== undefined) {
-          finalMultiplier = state.betRates[id];
-        } else if (hasBet && existingIdx !== undefined) {
-          finalMultiplier = combinedCells[existingIdx].multiplier;
-        }
-
         remoteIds.add(id);
 
+        const existingIdx = cellMap.get(id);
+        const hasBet = (bets[id] ?? 0) > 0 || (pendingBets[id] ?? 0) > 0;
+
+        let finalMultiplier = parseFloat(remoteCell.rewardRate);
+        if (hasBet) {
+          if (betRates[id] !== undefined) {
+            finalMultiplier = betRates[id];
+          } else if (existingIdx !== undefined) {
+            finalMultiplier = cells[existingIdx].multiplier;
+          }
+        }
+
         if (existingIdx === undefined) {
-          combinedCells.push({
+          const lo = parseFloat(remoteCell.lowerPrice);
+          const hi = parseFloat(remoteCell.upperPrice);
+          if (serverPriceBand === null && hi > lo) {
+            serverPriceBand = hi - lo;
+          }
+
+          nextCells.push({
             id,
-            timeWindowStart,
-            timeWindowEnd,
-            priceLevel,
+            timeWindowStart: remoteCell.startTs,
+            timeWindowEnd: remoteCell.endTs,
+            priceLevel: (lo + hi) / 2,
             multiplier: finalMultiplier,
-            status: timeWindowEnd < now ? "past" : "active",
+            status: remoteCell.endTs < now ? "past" : "active",
             original: remoteCell,
           });
-          combinedCellIndex.set(id, combinedCells.length - 1);
+          changed = true;
         } else {
-          // Update the multiplier rate since it fluctuates based on bets
-          // If the user has bet on this cell, keep the original rate.
-          combinedCells[existingIdx] = {
-            ...combinedCells[existingIdx],
-            multiplier: finalMultiplier,
-            priceLevel, // Ensure price bounds sync
-            original: remoteCell,
-          };
+          const existing = cells[existingIdx];
+          // Only update the object if the multiplier or underlying data changed
+          if (
+            existing.multiplier !== finalMultiplier ||
+            existing.original.rewardRate !== remoteCell.rewardRate
+          ) {
+            nextCells[existingIdx] = {
+              ...existing,
+              multiplier: finalMultiplier,
+              original: remoteCell,
+            };
+            changed = true;
+          }
         }
       }
 
-      // Filter out cells that are obsolete (older than 60s)
-      // And remove any active future cell that the server no longer broadcasted
-      // BUT: never remove cells that have bets (confirmed or pending) — keep them until resolved
-      const finalCells = combinedCells.filter((c) => {
+      // Efficiently filter out obsolete or stale cells in one go
+      let finalCells: CellData[] = nextCells;
+      const filtered: CellData[] = [];
+      let filterNeeded = false;
+
+      for (let i = 0; i < nextCells.length; i++) {
+        const c = nextCells[i];
+
+        // 1. Remove very old cells
+        if (c.timeWindowEnd <= cutoff) {
+          filterNeeded = true;
+          continue;
+        }
+
+        // 2. Remove inactive future cells no longer being broadcasted (unless there's a bet)
         const hasBetOnCell =
-          (state.bets[c.id] && state.bets[c.id] > 0) ||
-          (state.pendingBets[c.id] && state.pendingBets[c.id] > 0) ||
-          state.pendingWins[c.id] !== undefined;
+          (bets[c.id] ?? 0) > 0 ||
+          (pendingBets[c.id] ?? 0) > 0 ||
+          pendingWins[c.id] !== undefined;
+
         if (
           c.status === "active" &&
           c.timeWindowStart > now &&
           !remoteIds.has(c.id) &&
-          !hasBetOnCell // Don't discard cells the user has bet on
+          !hasBetOnCell
         ) {
-          return false; // Safely discard missing future predictions
+          filterNeeded = true;
+          continue;
         }
-        return c.timeWindowEnd > now - 60000;
-      });
 
-      let modePriceStep = state.modePriceStep;
-      if (
-        serverPriceBand != null &&
-        serverPriceBand > 0 &&
-        (modePriceStep <= 0 ||
-          Math.abs(modePriceStep - serverPriceBand) / serverPriceBand > 0.02)
-      ) {
-        modePriceStep = serverPriceBand;
+        filtered.push(c);
       }
 
-      return modePriceStep === state.modePriceStep
-        ? { cells: finalCells }
-        : { cells: finalCells, modePriceStep };
+      if (filterNeeded) {
+        finalCells = filtered;
+        changed = true;
+      }
+
+      // Calculate the most frequent price band from the server for grid snapping
+      if (serverPriceBand === null && newCells.length > 0) {
+        const lo = parseFloat(newCells[0].lowerPrice);
+        const hi = parseFloat(newCells[0].upperPrice);
+        if (hi > lo) serverPriceBand = hi - lo;
+      }
+
+      let modePriceStep = currentModePriceStep;
+      if (serverPriceBand !== null && serverPriceBand > 0) {
+        if (
+          modePriceStep <= 0 ||
+          Math.abs(modePriceStep - serverPriceBand) / serverPriceBand > 0.02
+        ) {
+          modePriceStep = serverPriceBand;
+        }
+      }
+
+      // Skip update if no meaningful changes occurred
+      if (!changed && modePriceStep === currentModePriceStep) {
+        return state;
+      }
+
+      return {
+        cells: finalCells,
+        modePriceStep,
+      };
     }),
 
   tickTime: () =>
