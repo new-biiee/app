@@ -95,7 +95,7 @@ const SummaryTile: React.FC<SummaryTileProps> = ({
           : "#ffffff";
   return (
     <div
-      className="rounded-2xl border p-4 relative overflow-hidden"
+      className="rounded-xl border p-3 relative overflow-hidden"
       style={{
         background:
           "linear-gradient(160deg, rgba(9, 29, 35, 0.5) 0%, rgba(6, 7, 8, 0.55) 100%)",
@@ -103,26 +103,26 @@ const SummaryTile: React.FC<SummaryTileProps> = ({
         boxShadow: "inset 0 1px 0 rgba(62, 244, 255, 0.06)",
       }}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-1.5 mb-1.5">
         <span className="opacity-90" style={{ color: BRAND_ACCENT }}>
           {icon}
         </span>
         <span
-          className="text-[10px] font-bold uppercase tracking-widest"
+          className="text-[9px] font-bold uppercase tracking-widest"
           style={{ color: "#7AA8B5" }}
         >
           {label}
         </span>
       </div>
       <p
-        className="text-xl font-black font-mono tracking-tight"
+        className="text-lg font-black font-mono tracking-tight"
         style={{ color }}
       >
         {value}
       </p>
       {hint ? (
         <p
-          className="text-[11px] mt-1.5 font-medium leading-snug"
+          className="text-[10px] mt-1 font-medium leading-snug"
           style={{ color: "#7AA8B5" }}
         >
           {hint}
@@ -451,33 +451,33 @@ export const HistoryView: React.FC = () => {
             "0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(62, 244, 255, 0.08), inset 0 -1px 0 rgba(46, 189, 133, 0.08)",
         }}
       >
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b" style={{ borderColor: "rgba(62, 244, 255, 0.12)" }}>
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b" style={{ borderColor: "rgba(62, 244, 255, 0.12)" }}>
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
             <div
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0"
+              className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center shrink-0"
               style={{
                 background:
                   "linear-gradient(135deg, rgba(62, 244, 255, 0.16) 0%, rgba(46, 189, 133, 0.12) 100%)",
                 border: "1px solid rgba(62, 244, 255, 0.24)",
-                boxShadow: "0 0 18px rgba(62, 244, 255, 0.16)",
+                boxShadow: "0 0 12px rgba(62, 244, 255, 0.12)",
               }}
             >
-              <History size={16} className="sm:w-[18px] sm:h-[18px]" style={{ color: BRAND_ACCENT }} />
+              <History size={14} className="sm:w-[16px] sm:h-[16px]" style={{ color: BRAND_ACCENT }} />
             </div>
             <div className="min-w-0">
               <h2
-                className="text-sm sm:text-base font-bold sm:font-semibold text-white truncate"
+                className="text-xs sm:text-sm font-bold sm:font-semibold text-white truncate"
               >
                 Trading History
               </h2>
-              <p className="hidden sm:block text-xs font-medium" style={{ color: "#7AA8B5" }}>
+              <p className="hidden sm:block text-[10px] font-medium" style={{ color: "#7AA8B5" }}>
                 Settled orders and reward outcomes for {selectedMarketLabel}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <span
-              className="inline-flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[11px] px-2 py-1 font-semibold rounded-md"
+              className="inline-flex items-center gap-1 sm:gap-1.5 text-[8px] sm:text-[10px] px-1.5 py-0.5 font-semibold rounded-md"
               style={{
                 color: "#ffffff",
                 background: "rgba(62, 244, 255, 0.08)",
@@ -492,7 +492,7 @@ export const HistoryView: React.FC = () => {
               </span>
             </span>
             <span
-              className="text-[9px] sm:text-[11px] px-2 py-1 font-semibold uppercase tracking-[0.1em] sm:tracking-[0.18em] rounded-md"
+              className="text-[8px] sm:text-[10px] px-1.5 py-0.5 font-semibold uppercase tracking-[0.05em] sm:tracking-[0.12em] rounded-md"
               style={{
                 color: BRAND_GREEN,
                 background: "rgba(46, 189, 133, 0.10)",
@@ -504,16 +504,16 @@ export const HistoryView: React.FC = () => {
           </div>
         </div>
 
-        <div className="px-4 sm:px-5 pb-4">
+        <div className="px-3 sm:px-4 pb-3">
           <h3
-            className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3 mt-4"
+            className="text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5 mt-3"
             style={{ color: "#7AA8B5" }}
           >
             Portfolio & performance
           </h3>
           {!authToken ? (
             <p
-              className="text-sm font-medium px-1 py-6 text-center rounded-xl border"
+              className="text-xs font-medium px-1 py-4 text-center rounded-xl border"
               style={{
                 color: "#9aa8b0",
                 borderColor: "rgba(62, 244, 255, 0.12)",
@@ -522,14 +522,14 @@ export const HistoryView: React.FC = () => {
               Sign in to load portfolio, PnL, and leaderboard rank.
             </p>
           ) : statsLoading && !stats ? (
-            <div className="flex justify-center py-10">
+            <div className="flex justify-center py-6">
               <Loader2
-                className="w-8 h-8 animate-spin"
+                className="w-6 h-6 animate-spin"
                 style={{ color: BRAND_ACCENT }}
               />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
               <SummaryTile
                 icon={<Wallet size={16} strokeWidth={2.2} />}
                 label="Portfolio"
@@ -663,7 +663,7 @@ export const HistoryView: React.FC = () => {
                         <div className="pt-2 border-t border-white/5">
                            <a href={toExplorerTxUrl(batchMeta.onchainTxHash)} target="_blank" rel="noreferrer" 
                               className="text-[9px] font-mono opacity-50 truncate block hover:opacity-100 transition-opacity underline decoration-dotted">
-                             Tx: {batchMeta.onchainTxHash}
+                             Tx: {batchMeta.onchainTxHash.slice(0, 6)}...{batchMeta.onchainTxHash.slice(-6)}
                            </a>
                         </div>
                       );
@@ -679,13 +679,13 @@ export const HistoryView: React.FC = () => {
           <table className="hidden md:table w-full text-center border-separate border-spacing-0 min-w-[720px] mx-auto">
             <thead className="z-10">
               <tr
-                className="text-xs uppercase tracking-wider"
+                className="text-[10px] uppercase tracking-wider"
                 style={{
                   color: "#d5dde0",
                 }}
               >
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 whitespace-nowrap"
+                  className="sticky top-0 z-20 py-2.5 px-3 whitespace-nowrap"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -694,7 +694,7 @@ export const HistoryView: React.FC = () => {
                   Settled Date
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 whitespace-nowrap"
+                  className="sticky top-0 z-20 py-2.5 px-3 whitespace-nowrap"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -703,7 +703,7 @@ export const HistoryView: React.FC = () => {
                   Direction
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 whitespace-nowrap"
+                  className="sticky top-0 z-20 py-2.5 px-3 whitespace-nowrap"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -712,7 +712,7 @@ export const HistoryView: React.FC = () => {
                   Price Range
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 whitespace-nowrap"
+                  className="sticky top-0 z-20 py-2.5 px-3 whitespace-nowrap"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -721,7 +721,7 @@ export const HistoryView: React.FC = () => {
                   Reward Rate
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4"
+                  className="sticky top-0 z-20 py-2.5 px-3"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -730,7 +730,7 @@ export const HistoryView: React.FC = () => {
                   Batch Settlement
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 text-center"
+                  className="sticky top-0 z-20 py-2.5 px-3 text-center"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -739,7 +739,7 @@ export const HistoryView: React.FC = () => {
                   Stake
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 text-center whitespace-nowrap"
+                  className="sticky top-0 z-20 py-2.5 px-3 text-center whitespace-nowrap"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -748,7 +748,7 @@ export const HistoryView: React.FC = () => {
                   Payout
                 </th>
                 <th
-                  className="sticky top-0 z-20 py-4 px-4 text-center"
+                  className="sticky top-0 z-20 py-2.5 px-3 text-center"
                   style={{
                     background: TH_BACKGROUND,
                     borderBottom: "1px solid rgba(62, 244, 255, 0.08)",
@@ -799,7 +799,7 @@ export const HistoryView: React.FC = () => {
                     }}
                   >
                     <td
-                      className="py-4 px-4 text-sm whitespace-nowrap"
+                      className="py-2.5 px-3 text-xs whitespace-nowrap"
                       style={{ color: "#d0d0d0" }}
                     >
                       {order.settledAt
@@ -809,13 +809,13 @@ export const HistoryView: React.FC = () => {
                           : "-"}
                     </td>
                     <td
-                      className="py-4 px-4 text-sm whitespace-nowrap"
+                      className="py-2.5 px-3 text-xs whitespace-nowrap"
                       style={{ color: "#ffffff" }}
                     >
                       <DirectionBadge dir={order.direction} />
                     </td>
                     <td
-                      className="py-4 px-4 text-xs font-mono whitespace-nowrap"
+                      className="py-2.5 px-3 text-[11px] font-mono whitespace-nowrap"
                       style={{ color: "#d0d0d0" }}
                     >
                       {formatPriceRange(
@@ -824,7 +824,7 @@ export const HistoryView: React.FC = () => {
                       )}
                     </td>
                     <td
-                      className="py-4 px-4 text-sm font-mono whitespace-nowrap"
+                      className="py-2.5 px-3 text-xs font-mono whitespace-nowrap"
                       style={{ color: "#ffffff" }}
                     >
                       {order.rewardRate
@@ -832,8 +832,8 @@ export const HistoryView: React.FC = () => {
                         : "-"}
                     </td>
                     <td
-                      className="py-4 px-4 text-xs leading-relaxed text-center"
-                      style={{ color: "#d0d0d0", minWidth: "250px" }}
+                      className="py-2.5 px-3 text-[11px] leading-relaxed text-center"
+                      style={{ color: "#d0d0d0", minWidth: "180px" }}
                     >
                       {(() => {
                         const orderKey =
@@ -851,7 +851,7 @@ export const HistoryView: React.FC = () => {
                         if (batchMeta?.onchainTxHash) {
                           return (
                             <div
-                              className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-medium"
+                              className="inline-flex items-center rounded-lg px-2 py-1 text-[10px] font-medium"
                               style={{
                                 background: "rgba(255, 180, 80, 0.12)",
                                 border: "1px solid rgba(255, 180, 80, 0.35)",
@@ -865,7 +865,7 @@ export const HistoryView: React.FC = () => {
                                 className="font-mono underline decoration-dotted"
                                 style={{ color: "#ffffff" }}
                               >
-                                {batchMeta.onchainTxHash}
+                                {batchMeta.onchainTxHash.slice(0, 6)}....{batchMeta.onchainTxHash.slice(-15)}
                               </a>
                             </div>
                           );
@@ -878,7 +878,7 @@ export const HistoryView: React.FC = () => {
                         ) {
                           return (
                             <div
-                              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium"
+                              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium"
                               style={{
                                 background: "rgba(255, 180, 80, 0.12)",
                                 border: "1px solid rgba(255, 180, 80, 0.35)",
@@ -898,14 +898,14 @@ export const HistoryView: React.FC = () => {
 
                         return (
                           <div
-                            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium"
+                            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium"
                             style={{
                               background: "rgba(255, 180, 80, 0.12)",
                               border: "1px solid rgba(255, 180, 80, 0.35)",
                               color: "#e8d4b8",
                             }}
                           >
-                            <span>Batch settlement in progress</span>
+                            <span>Settling</span>
                             <strong
                               className="font-mono"
                               style={{ color: "#ffffff" }}
@@ -917,12 +917,12 @@ export const HistoryView: React.FC = () => {
                       })()}
                     </td>
                     <td
-                      className="py-4 px-4 font-bold text-center whitespace-nowrap font-mono"
+                      className="py-2.5 px-3 font-bold text-center whitespace-nowrap font-mono text-xs"
                       style={{ color: BRAND_ACCENT }}
                     >
                       {fmtUsd(microToUsdt(order.amount))}
                     </td>
-                    <td className="py-4 px-4 text-center whitespace-nowrap font-mono text-sm font-semibold">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap font-mono text-xs font-semibold">
                       {order.settledWin === true ? (
                         <span style={{ color: "#2EBD85" }}>
                           {fmtUsd(
@@ -937,9 +937,9 @@ export const HistoryView: React.FC = () => {
                         <span style={{ color: "#7AA8B5" }}>—</span>
                       )}
                     </td>
-                    <td className="py-4 px-4 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span
-                        className={cn("px-3 py-1 text-xs font-semibold")}
+                        className={cn("px-2 py-0.5 text-[10px] font-semibold")}
                         style={{
                           borderRadius: "4px",
                           background:
@@ -972,13 +972,13 @@ export const HistoryView: React.FC = () => {
 
         {/* Pagination Controls */}
         <div
-          className="flex items-center justify-between px-5 py-4 mt-auto"
+          className="flex items-center justify-between px-4 py-3 mt-auto"
           style={{ borderTop: "1px solid rgba(62, 244, 255, 0.10)" }}
         >
           <button
             disabled={page === 0 || loading}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="flex items-center rounded-xl gap-1 px-4 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="flex items-center rounded-lg gap-1 px-3 py-1.5 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{
               color: BRAND_ACCENT,
               background:
@@ -987,11 +987,11 @@ export const HistoryView: React.FC = () => {
             }}
           >
             <span className="relative z-10 flex items-center gap-1">
-              <ChevronLeft size={15} /> Previous
+              <ChevronLeft size={14} /> Previous
             </span>
           </button>
           <span
-            className="text-md font-medium mr-4"
+            className="text-sm font-medium mr-4"
             style={{ color: "#d0d0d0", fontFamily: "monospace" }}
           >
             Page {page + 1}
@@ -999,7 +999,7 @@ export const HistoryView: React.FC = () => {
           <button
             disabled={orders.length !== 20 || loading}
             onClick={() => setPage((p) => p + 1)}
-            className="flex items-center rounded-xl gap-1 px-4 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="flex items-center rounded-lg gap-1 px-3 py-1.5 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{
               color: BRAND_ACCENT,
               background:
@@ -1008,7 +1008,7 @@ export const HistoryView: React.FC = () => {
             }}
           >
             <span className="relative z-10 flex items-center gap-1">
-              Next <ChevronRight size={15} />
+              Next <ChevronRight size={14} />
             </span>
           </button>
         </div>

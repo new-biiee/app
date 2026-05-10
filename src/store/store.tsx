@@ -289,7 +289,11 @@ export const useGameStore = create<GameState>((set) => ({
 
   checkWinEffects: (now: number) =>
     set((state) => {
-      if (Object.keys(state.pendingWins).length === 0) {
+      const pendingWinIds = Object.keys(state.pendingWins);
+      const betIds = Object.keys(state.bets);
+      const pendingBetIds = Object.keys(state.pendingBets);
+
+      if (pendingWinIds.length === 0 && betIds.length === 0 && pendingBetIds.length === 0) {
         return state;
       }
 
@@ -300,26 +304,22 @@ export const useGameStore = create<GameState>((set) => ({
         newState.cells.map((cell) => [cell.id, cell] as const),
       );
 
+      // 1. Process pending wins from server
       for (const [cellId, winAmount] of Object.entries(state.pendingWins)) {
         const cell = cellById.get(cellId);
-
-        // Cleanup if cell is gone
         if (!cell) {
           delete newPendingWins[cellId];
           changed = true;
           continue;
         }
 
-        // Must have a confirmed bet on this cell
-        const hasBet =
-          (newState.bets[cellId] ?? 0) > 0 ||
-          (newState.pendingBets[cellId] ?? 0) > 0;
-        if (!hasBet) {
-          // No bet recorded yet — wait (don't remove from pendingWins)
+        // If already hit (either locally or previously), just clear from pendingWins and skip toast
+        if (cell.status === "hit") {
+          delete newPendingWins[cellId];
+          changed = true;
           continue;
         }
 
-        // Calculate physical grid bounds to ensure chart physically touched it
         const lowerPrice =
           cell.original.lowerPrice !== undefined
             ? parseFloat(cell.original.lowerPrice)
@@ -329,17 +329,11 @@ export const useGameStore = create<GameState>((set) => ({
             ? parseFloat(cell.original.upperPrice)
             : cell.priceLevel + newState.modePriceStep / 2;
 
-        const isTimeInside =
-          now >= cell.timeWindowStart && now <= cell.timeWindowEnd;
+        const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
+                           (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
         const isTimePassed = now > cell.timeWindowEnd;
-        const isPriceInside =
-          newState.currentPrice >= lowerPrice &&
-          newState.currentPrice <= upperPrice;
 
-        const isTouching = isTimeInside && isPriceInside;
-
-        // Trigger win effect exactly when chart line physically touches the cell, or if the time has passed as fallback
-        if (cell.status !== "hit" && (isTouching || isTimePassed)) {
+        if (isTouching || isTimePassed) {
           if (winAmount > 0) {
             toast.success(`You won $${winAmount.toFixed(2)}! 🚀`, {
               style: {
@@ -361,6 +355,52 @@ export const useGameStore = create<GameState>((set) => ({
           );
 
           delete newPendingWins[cellId];
+          changed = true;
+        }
+      }
+
+      // 2. Process local hits for active bets (not yet in pendingWins)
+      const allBets = { ...state.bets, ...state.pendingBets };
+      for (const [cellId, betAmount] of Object.entries(allBets)) {
+        if (newPendingWins[cellId] !== undefined) continue; // Already handled above
+
+        const cell = cellById.get(cellId);
+        if (!cell || cell.status === "hit") continue;
+
+        const lowerPrice =
+          cell.original.lowerPrice !== undefined
+            ? parseFloat(cell.original.lowerPrice)
+            : cell.priceLevel - newState.modePriceStep / 2;
+        const upperPrice =
+          cell.original.upperPrice !== undefined
+            ? parseFloat(cell.original.upperPrice)
+            : cell.priceLevel + newState.modePriceStep / 2;
+
+        const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
+                           (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
+
+        if (isTouching) {
+          const mult = cell.multiplier && !isNaN(cell.multiplier) ? cell.multiplier : 0;
+          const localWinAmount = betAmount * mult;
+          if (localWinAmount > 0) {
+            toast.success(`You won $${localWinAmount.toFixed(2)}! 🚀`, {
+              style: {
+                background: "#252422",
+                color: "#2EBD85",
+                border: "1px solid rgba(46, 189, 133, 0.5)",
+                boxShadow: "0 0 15px rgba(46, 189, 133, 0.3)",
+              },
+              iconTheme: {
+                primary: "#2EBD85",
+                secondary: "#252422",
+              },
+              position: "top-center",
+            });
+          }
+
+          newState.cells = newState.cells.map((c) =>
+            c.id === cellId ? { ...c, status: "hit" as const } : c,
+          );
           changed = true;
         }
       }

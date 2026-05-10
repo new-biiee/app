@@ -1,6 +1,6 @@
 import type { WorkflowConfig } from "./WorkflowCore";
 
-/** Diagram A — Trade-to-payout lifecycle (user / LP perspective, neon theme) */
+/** Diagram A — Trade-to-payout lifecycle (user / LP perspective) */
 export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
   title: "Trade-to-Payout Lifecycle",
   subtitle: "user-lifecycle.workflow",
@@ -23,10 +23,6 @@ export const TRADE_TO_PAYOUT_CONFIG: WorkflowConfig = {
       fill: "#00FFFF",
       // glow: true, // if supported by renderer
       processing: true,
-      // @ts-ignore
-      // style: {
-        // filter: 'drop-shadow(0 0 16px #00FFFF)' // optional for neon effect
-        // }
     },
     {
       id: "close",

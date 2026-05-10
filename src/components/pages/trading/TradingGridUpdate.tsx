@@ -223,7 +223,8 @@ export const TradingGridUpdate: React.FC = () => {
 
       // Check Win Effects (Every 100ms)
       if (time - lastWinCheckTime.current > 100) {
-        if (Object.keys(state.pendingWins).length > 0) {
+        const hasBets = Object.keys(state.bets).length > 0 || Object.keys(state.pendingBets).length > 0;
+        if (Object.keys(state.pendingWins).length > 0 || hasBets) {
             state.checkWinEffects(now);
         }
         lastWinCheckTime.current = time;
@@ -310,9 +311,9 @@ export const TradingGridUpdate: React.FC = () => {
                 }
 
                 if (isHit && hasAnyBet) {
-                    ctx.fillStyle = "rgba(46, 189, 133, 0.35)"; ctx.fillRect(rx1, ry1, rw, rh);
+                    ctx.fillStyle = "rgba(46,189,133,0.35)"; ctx.fillRect(rx1, ry1, rw, rh);
                     ctx.strokeStyle = "#2EBD85"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
-                } else if (cell.timeWindowStart > now && hasAnyBet) {
+                } else if (hasAnyBet && now < cell.timeWindowEnd) {
                     ctx.fillStyle = "rgba(8, 71, 247, 0.25)"; ctx.fillRect(rx1, ry1, rw, rh);
                     ctx.strokeStyle = "#0847F7"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
                 } else if (isNext && !hasAnyBet) {
@@ -321,7 +322,7 @@ export const TradingGridUpdate: React.FC = () => {
                     ctx.fillRect(rx1, ry1, rw, rh);
                 }
 
-                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet ? "#0847F7" : (isNext && !hasAnyBet) ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)");
+                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet && now < cell.timeWindowEnd ? "#0847F7" : (isNext && !hasAnyBet) ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)");
                 ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(`${cell.multiplier.toFixed(2)}x`, Math.round(rx1 + rw / 2), Math.round(ry1 + rh / 2));
             });
