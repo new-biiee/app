@@ -333,11 +333,13 @@ export const TradingGridUpdate: React.FC = () => {
             if (state.history.length > 0) {
                 ctx.beginPath(); ctx.strokeStyle = "#3ef4ff"; ctx.lineWidth = 2; ctx.lineJoin = "round";
                 ctx.moveTo(tx, currentY);
+                let lastX = tx;
                 for (let i = state.history.length - 1; i >= 0; i--) {
                     const pt = state.history[i];
-                    const px = getTimeX(pt.time, now, dims.width);
+                    const px = Math.min(getTimeX(pt.time, now, dims.width), lastX);
                     const py = getPriceY(pt.price, cam, dims.height, step);
-                    ctx.lineTo(Math.min(px, tx), py);
+                    ctx.lineTo(px, py);
+                    lastX = px;
                     if (px < -50) break;
                 }
                 ctx.stroke();
