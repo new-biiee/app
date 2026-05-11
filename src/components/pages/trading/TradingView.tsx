@@ -193,7 +193,7 @@ export const TradingView: React.FC = () => {
 
       {shouldShowTradingGrid ? (
         <div className="flex-1 flex flex-col relative overflow-hidden h-full">
-          {demoWinFeed ? (
+          {/* {demoWinFeed ? (
             <div className="pointer-events-none absolute left-3 right-3 top-14 z-30 sm:left-3 sm:top-14 sm:right-auto">
               <div
                 key={demoWinFeed.id}
@@ -224,7 +224,7 @@ export const TradingView: React.FC = () => {
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : null} */}
           <TradingGridUpdate />
         </div>
       ) : (

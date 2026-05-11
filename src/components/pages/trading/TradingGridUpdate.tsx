@@ -17,39 +17,39 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 // Toast Styles from original TradingGrid
 const TOAST_STYLES = {
   warning: {
-    background: "rgba(18, 20, 30, 0.95)",
-    color: "#f6465d",
-    border: "1px solid rgba(246, 70, 93, 0.5)",
-    boxShadow: "0 4px 20px rgba(246, 70, 93, 0.25), inset 0 0 10px rgba(246, 70, 93, 0.1)",
-    backdropFilter: "blur(8px)",
+    background: "#5d223695",
+    color: "#ff0055",
+    border: "2px solid #ff0055",
+    boxShadow: "0 0 10px rgba(255, 0, 85, 0.3)",
+    backdropFilter: "blur(12px)",
     fontWeight: "bold",
-    fontSize: "13px",
-    padding: "12px 16px",
-    borderRadius: "8px",
+    fontSize: "12px",
+    padding: "10px 16px",
+    borderRadius: "15px",
     letterSpacing: "0.02em",
   },
   info: {
-    background: "rgba(18, 20, 30, 0.95)",
-    color: "#ffffff",
-    border: "1px solid rgba(8, 71, 247, 0.5)",
-    boxShadow: "0 4px 20px rgba(8, 71, 247, 0.25), inset 0 0 10px rgba(8, 71, 247, 0.1)",
-    backdropFilter: "blur(8px)",
+    background: "#1b38559a",
+    color: "#00f2ff",
+    border: "2px solid #00f2ff",
+    boxShadow: "0 0 10px rgba(0, 242, 255, 0.3)",
+    backdropFilter: "blur(12px)",
     fontWeight: "bold",
-    fontSize: "13px",
-    padding: "12px 16px",
-    borderRadius: "8px",
+    fontSize: "12px",
+    padding: "10px 16px",
+    borderRadius: "15px",
     letterSpacing: "0.02em",
   },
   caution: {
-    background: "rgba(18, 20, 30, 0.95)",
-    color: "#eab308",
-    border: "1px solid rgba(234, 179, 8, 0.5)",
-    boxShadow: "0 4px 20px rgba(234, 179, 8, 0.25), inset 0 0 10px rgba(234, 179, 8, 0.1)",
-    backdropFilter: "blur(8px)",
+    background: "#8d8a0084",
+    color: "#fff000",
+    border: "2px solid #fff000",
+    boxShadow: "0 0 10px rgba(255, 240, 0, 0.3)",
+    backdropFilter: "blur(12px)",
     fontWeight: "bold",
-    fontSize: "13px",
-    padding: "12px 16px",
-    borderRadius: "8px",
+    fontSize: "12px",
+    padding: "10px 16px",
+    borderRadius: "15px",
     letterSpacing: "0.02em",
   }
 };
@@ -164,21 +164,21 @@ export const TradingGridUpdate: React.FC = () => {
       const canBet = cell.timeWindowStart > now && !hasAnyBet;
 
       if (isNext && !hasAnyBet) {
-        toast("Cell closing soon. Select another!", { icon: "⏳", style: TOAST_STYLES.warning });
+        toast("Zone closing! Pick another cell.", { icon: "⏳", style: TOAST_STYLES.warning, position: "top-right" });
         return;
       }
 
       if (canBet) {
         if (!localStorage.getItem("token")) {
-          toast("Connect wallet & login to trade!", { icon: "🔐", style: TOAST_STYLES.info });
+          toast("Please connect your wallet first.", { icon: "🔐", style: TOAST_STYLES.info, position: "top-right" });
           return;
         }
         if (!state.betAmount || state.betAmount <= 0) {
-          toast("Invalid bet amount!", { icon: "⚠️", style: TOAST_STYLES.caution });
+          toast("Please enter a valid amount.", { icon: "⚠️", style: TOAST_STYLES.caution, position: "top-right" });
           return;
         }
         if (state.betAmount > state.balance) {
-          toast("Insufficient balance!", { icon: "💸", style: TOAST_STYLES.warning });
+          toast("Insufficient balance for this trade.", { icon: "💸", style: TOAST_STYLES.warning, position: "top-right" });
           return;
         }
 
@@ -314,15 +314,15 @@ export const TradingGridUpdate: React.FC = () => {
                     ctx.fillStyle = "rgba(46,189,133,0.35)"; ctx.fillRect(rx1, ry1, rw, rh);
                     ctx.strokeStyle = "#2EBD85"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
                 } else if (hasAnyBet && now < cell.timeWindowEnd) {
-                    ctx.fillStyle = "rgba(8, 71, 247, 0.25)"; ctx.fillRect(rx1, ry1, rw, rh);
-                    ctx.strokeStyle = "#0847F7"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
+                    ctx.fillStyle = "rgba(0, 242, 255, 0.25)"; ctx.fillRect(rx1, ry1, rw, rh);
+                    ctx.strokeStyle = "#00f2ff"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
                 } else if (isNext && !hasAnyBet) {
                     const pulse = 0.2 + 0.15 * Math.sin(now / 200); 
                     ctx.fillStyle = `rgba(246, 70, 94, ${pulse})`;
                     ctx.fillRect(rx1, ry1, rw, rh);
                 }
 
-                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet && now < cell.timeWindowEnd ? "#0847F7" : (isNext && !hasAnyBet) ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)");
+                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet && now < cell.timeWindowEnd ? "#00f2ff" : (isNext && !hasAnyBet) ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)");
                 ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(`${cell.multiplier.toFixed(2)}x`, Math.round(rx1 + rw / 2), Math.round(ry1 + rh / 2));
             });

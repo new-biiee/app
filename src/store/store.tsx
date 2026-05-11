@@ -333,20 +333,23 @@ export const useGameStore = create<GameState>((set) => ({
                            (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
         const isTimePassed = now > cell.timeWindowEnd;
 
-        if (isTouching || isTimePassed) {
+        if (isTimePassed) {
           if (winAmount > 0) {
-            toast.success(`You won $${winAmount.toFixed(2)}! 🚀`, {
+            toast.success(`You won $${winAmount.toFixed(2)}!`, {
               style: {
-                background: "#252422",
-                color: "#2EBD85",
-                border: "1px solid rgba(46, 189, 133, 0.5)",
-                boxShadow: "0 0 15px rgba(46, 189, 133, 0.3)",
+                background: "#064d00e9",
+                color: "#39ff14",
+                border: "2px solid #39ff14",
+                boxShadow: "0 0 10px rgba(57, 255, 20, 0.3)",
+                fontWeight: "bold",
+                fontSize: "12px",
               },
               iconTheme: {
-                primary: "#2EBD85",
-                secondary: "#252422",
+                primary: "#39ff14",
+                secondary: "#08090a",
               },
-              position: "top-center",
+              position: "top-right",
+              icon: "🥇",
             });
           }
 
@@ -382,25 +385,8 @@ export const useGameStore = create<GameState>((set) => ({
         if (isTouching) {
           const mult = cell.multiplier && !isNaN(cell.multiplier) ? cell.multiplier : 0;
           const localWinAmount = betAmount * mult;
-          if (localWinAmount > 0) {
-            toast.success(`You won $${localWinAmount.toFixed(2)}! 🚀`, {
-              style: {
-                background: "#252422",
-                color: "#2EBD85",
-                border: "1px solid rgba(46, 189, 133, 0.5)",
-                boxShadow: "0 0 15px rgba(46, 189, 133, 0.3)",
-              },
-              iconTheme: {
-                primary: "#2EBD85",
-                secondary: "#252422",
-              },
-              position: "top-center",
-            });
-          }
-
-          newState.cells = newState.cells.map((c) =>
-            c.id === cellId ? { ...c, status: "hit" as const } : c,
-          );
+          
+          newPendingWins[cellId] = localWinAmount;
           changed = true;
         }
       }
@@ -457,12 +443,21 @@ export const useGameStore = create<GameState>((set) => ({
         };
       }
 
-      toast.error("Insufficient balance!", {
+      toast.error("Insufficient balance.", {
         style: {
-          background: "#252422",
-          color: "#d57455",
-          border: "1px solid rgba(213, 116, 85, 0.5)",
+          background: "#5d223695",
+          color: "#ff0055",
+          border: "2px solid #ff0055",
+          boxShadow: "0 0 10px rgba(255, 0, 85, 0.3)",
+          backdropFilter: "blur(12px)",
+          fontWeight: "bold",
+          fontSize: "12px",
+          padding: "10px 16px",
+          borderRadius: "15px",
+          letterSpacing: "0.02em",
         },
+        position: "top-right",
+        icon: "💵",
       });
       return state;
     }),
