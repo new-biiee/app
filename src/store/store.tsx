@@ -320,17 +320,17 @@ export const useGameStore = create<GameState>((set) => ({
           continue;
         }
 
-        const lowerPrice =
-          cell.original.lowerPrice !== undefined
-            ? parseFloat(cell.original.lowerPrice)
-            : cell.priceLevel - newState.modePriceStep / 2;
-        const upperPrice =
-          cell.original.upperPrice !== undefined
-            ? parseFloat(cell.original.upperPrice)
-            : cell.priceLevel + newState.modePriceStep / 2;
+        // const lowerPrice =
+        //   cell.original.lowerPrice !== undefined
+        //     ? parseFloat(cell.original.lowerPrice)
+        //     : cell.priceLevel - newState.modePriceStep / 2;
+        // const upperPrice =
+        //   cell.original.upperPrice !== undefined
+        //     ? parseFloat(cell.original.upperPrice)
+        //     : cell.priceLevel + newState.modePriceStep / 2;
 
-        const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
-                           (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
+        // const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
+                          //  (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
         const isTimePassed = now > cell.timeWindowEnd;
 
         if (isTimePassed) {

@@ -4,11 +4,11 @@ import { useGameStore } from "../../../store/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useOrderControllerGetUserOrders } from "../../../services/queries";
 import { ComingSoon } from "../fallback/ComingSoon";
-import { AlertTriangle, ChartCandlestick, Layers2, Trophy } from "lucide-react";
+import { AlertTriangle, ChartCandlestick, Layers2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-const truncateAddress = (address: string) =>
-  `${address.slice(0, 6)}...${address.slice(-4)}`;
+// const truncateAddress = (address: string) =>
+//   `${address.slice(0, 6)}...${address.slice(-4)}`;
 
 export const TradingView: React.FC = () => {
   const [activeMode, setActiveMode] = useState<"pool" | "social">("pool");
