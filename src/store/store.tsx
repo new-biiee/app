@@ -200,6 +200,18 @@ export const useGameStore = create<GameState>((set) => ({
       const upper = data.upperPrice || data.cell?.upperPrice;
       let cellId = `${start}:${end}:${lower}:${upper}`;
 
+      // Failsafe approximate match in case price float precision caused ID mismatch
+      let cell = newState.cells.find((c) => c.id === cellId);
+      if (!cell && start && end) {
+        cell = newState.cells.find(
+          (c) =>
+            c.timeWindowStart === Number(start) &&
+            c.timeWindowEnd === Number(end) &&
+            (newState.bets[c.id] || newState.pendingBets[c.id] || newState.pendingWins[c.id] !== undefined),
+        );
+        if (cell) cellId = cell.id;
+      }
+
       if (data.status === "OPEN") {
         const newPendingBets = { ...newState.pendingBets };
         delete newPendingBets[cellId];
@@ -245,19 +257,9 @@ export const useGameStore = create<GameState>((set) => ({
         String(data.settledWin) === "true" ||
         data.status === "WIN";
 
-      if (isWin) {
-        let cell = newState.cells.find((c) => c.id === cellId);
-        // Failsafe approximate match in case price float precision caused ID mismatch
-        if (!cell && start && end) {
-          cell = newState.cells.find(
-            (c) =>
-              c.timeWindowStart === Number(start) &&
-              c.timeWindowEnd === Number(end) &&
-              (newState.bets[c.id] || newState.pendingBets[c.id]),
-          );
-          if (cell) cellId = cell.id;
-        }
+      const isSettled = data.status === "SETTLED" || data.status === "WIN" || data.status === "LOST" || data.status === "LOSS";
 
+      if (isWin) {
         if (cell && cell.status !== "hit") {
           const betAmount =
             newState.bets[cellId] ||
@@ -283,6 +285,18 @@ export const useGameStore = create<GameState>((set) => ({
               Object.values(newPendingWins).reduce((a, b) => a + b, 0),
           };
         }
+      } else if (isSettled) {
+        // Confirmed loss - cleanup bet state so highlight disappears
+        const newPendingBets = { ...newState.pendingBets };
+        delete newPendingBets[cellId];
+        const newBets = { ...newState.bets };
+        delete newBets[cellId];
+        
+        newState = {
+          ...newState,
+          pendingBets: newPendingBets,
+          bets: newBets,
+        };
       }
       return newState;
     }),
@@ -290,10 +304,9 @@ export const useGameStore = create<GameState>((set) => ({
   checkWinEffects: (now: number) =>
     set((state) => {
       const pendingWinIds = Object.keys(state.pendingWins);
-      const betIds = Object.keys(state.bets);
-      const pendingBetIds = Object.keys(state.pendingBets);
+      void now;
 
-      if (pendingWinIds.length === 0 && betIds.length === 0 && pendingBetIds.length === 0) {
+      if (pendingWinIds.length === 0) {
         return state;
       }
 
@@ -304,7 +317,7 @@ export const useGameStore = create<GameState>((set) => ({
         newState.cells.map((cell) => [cell.id, cell] as const),
       );
 
-      // 1. Process pending wins from server
+      // Process pending wins from server
       for (const [cellId, winAmount] of Object.entries(state.pendingWins)) {
         const cell = cellById.get(cellId);
         if (!cell) {
@@ -320,75 +333,31 @@ export const useGameStore = create<GameState>((set) => ({
           continue;
         }
 
-        // const lowerPrice =
-        //   cell.original.lowerPrice !== undefined
-        //     ? parseFloat(cell.original.lowerPrice)
-        //     : cell.priceLevel - newState.modePriceStep / 2;
-        // const upperPrice =
-        //   cell.original.upperPrice !== undefined
-        //     ? parseFloat(cell.original.upperPrice)
-        //     : cell.priceLevel + newState.modePriceStep / 2;
-
-        // const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
-                          //  (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
-        const isTimePassed = now > cell.timeWindowEnd;
-
-        if (isTimePassed) {
-          if (winAmount > 0) {
-            toast.success(`You won $${winAmount.toFixed(2)}!`, {
-              style: {
-                background: "#064d00e9",
-                color: "#39ff14",
-                border: "2px solid #39ff14",
-                boxShadow: "0 0 10px rgba(57, 255, 20, 0.3)",
-                fontWeight: "bold",
-                fontSize: "12px",
-              },
-              iconTheme: {
-                primary: "#39ff14",
-                secondary: "#08090a",
-              },
-              position: "top-right",
-              icon: "🥇",
-            });
-          }
-
-          newState.cells = newState.cells.map((c) =>
-            c.id === cellId ? { ...c, status: "hit" as const } : c,
-          );
-
-          delete newPendingWins[cellId];
-          changed = true;
+        if (winAmount > 0) {
+          toast.success(`You won $${winAmount.toFixed(2)}!`, {
+            style: {
+              background: "#064d00e9",
+              color: "#39ff14",
+              border: "2px solid #39ff14",
+              boxShadow: "0 0 10px rgba(57, 255, 20, 0.3)",
+              fontWeight: "bold",
+              fontSize: "12px",
+            },
+            iconTheme: {
+              primary: "#39ff14",
+              secondary: "#08090a",
+            },
+            position: "top-right",
+            icon: "🥇",
+          });
         }
-      }
 
-      // 2. Process local hits for active bets (not yet in pendingWins)
-      const allBets = { ...state.bets, ...state.pendingBets };
-      for (const [cellId, betAmount] of Object.entries(allBets)) {
-        if (newPendingWins[cellId] !== undefined) continue; // Already handled above
+        newState.cells = newState.cells.map((c) =>
+          c.id === cellId ? { ...c, status: "hit" as const } : c,
+        );
 
-        const cell = cellById.get(cellId);
-        if (!cell || cell.status === "hit") continue;
-
-        const lowerPrice =
-          cell.original.lowerPrice !== undefined
-            ? parseFloat(cell.original.lowerPrice)
-            : cell.priceLevel - newState.modePriceStep / 2;
-        const upperPrice =
-          cell.original.upperPrice !== undefined
-            ? parseFloat(cell.original.upperPrice)
-            : cell.priceLevel + newState.modePriceStep / 2;
-
-        const isTouching = (now >= cell.timeWindowStart && now <= cell.timeWindowEnd) && 
-                           (newState.currentPrice >= lowerPrice && newState.currentPrice <= upperPrice);
-
-        if (isTouching) {
-          const mult = cell.multiplier && !isNaN(cell.multiplier) ? cell.multiplier : 0;
-          const localWinAmount = betAmount * mult;
-          
-          newPendingWins[cellId] = localWinAmount;
-          changed = true;
-        }
+        delete newPendingWins[cellId];
+        changed = true;
       }
 
       if (changed) {

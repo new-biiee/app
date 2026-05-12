@@ -223,8 +223,7 @@ export const TradingGridUpdate: React.FC = () => {
 
       // Check Win Effects (Every 100ms)
       if (time - lastWinCheckTime.current > 100) {
-        const hasBets = Object.keys(state.bets).length > 0 || Object.keys(state.pendingBets).length > 0;
-        if (Object.keys(state.pendingWins).length > 0 || hasBets) {
+        if (Object.keys(state.pendingWins).length > 0) {
             state.checkWinEffects(now);
         }
         lastWinCheckTime.current = time;
@@ -302,7 +301,7 @@ export const TradingGridUpdate: React.FC = () => {
                 const isNext = cell.timeWindowStart > now && cell.timeWindowStart - now <= 5000;
 
                 if (now >= cell.timeWindowStart && !hasAnyBet) return;
-                if (now >= cell.timeWindowEnd && !isHit && pendingWins[cell.id] === undefined) return;
+                if (now >= cell.timeWindowEnd && !isHit && pendingWins[cell.id] === undefined && !hasAnyBet) return;
 
                 // DRAW HIGHLIGHT if hovered
                 if (hoverCellId.current === cell.id) {
@@ -313,16 +312,16 @@ export const TradingGridUpdate: React.FC = () => {
                 if (isHit && hasAnyBet) {
                     ctx.fillStyle = "rgba(46,189,133,0.35)"; ctx.fillRect(rx1, ry1, rw, rh);
                     ctx.strokeStyle = "#2EBD85"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
-                } else if (hasAnyBet && now < cell.timeWindowEnd) {
+                } else if (hasAnyBet) {
                     ctx.fillStyle = "rgba(0, 242, 255, 0.25)"; ctx.fillRect(rx1, ry1, rw, rh);
                     ctx.strokeStyle = "#00f2ff"; ctx.strokeRect(rx1 + 1, ry1 + 1, rw - 2, rh - 2);
-                } else if (isNext && !hasAnyBet) {
+                } else if (isNext) {
                     const pulse = 0.2 + 0.15 * Math.sin(now / 200); 
                     ctx.fillStyle = `rgba(246, 70, 94, ${pulse})`;
                     ctx.fillRect(rx1, ry1, rw, rh);
                 }
 
-                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet && now < cell.timeWindowEnd ? "#00f2ff" : (isNext && !hasAnyBet) ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)");
+                ctx.fillStyle = (isHit && hasAnyBet) ? "#2EBD85" : (hasAnyBet ? "#00f2ff" : (isNext ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.8)"));
                 ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(`${cell.multiplier.toFixed(2)}x`, Math.round(rx1 + rw / 2), Math.round(ry1 + rh / 2));
             });
