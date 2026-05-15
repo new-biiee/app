@@ -43,13 +43,6 @@ const ENGINE_FEATURES = [
     color: "#3ef4ff"
   },
   {
-    id: "SYS-L1",
-    title: "Sharded WAL Ledger",
-    detail: "Deterministic state machine employing user-based sharding and Write-Ahead Logging (WAL) to guarantee atomic, crash-safe balance mutations.",
-    icon: Database,
-    color: "#3ef4ff"
-  },
-  {
     id: "ZK-S1",
     title: "ZK-Proven Settlement",
     detail: "Compiles 15-minute batches into Groth16 proofs via SP1 zkVM, enforcing 28 unique financial and oracle consistency constraints on Solana.",
