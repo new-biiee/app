@@ -3,7 +3,6 @@ import {
   Activity,
   Zap,
   Cpu,
-  Database,
   ShieldCheck,
   TrendingUp
 } from "lucide-react";
