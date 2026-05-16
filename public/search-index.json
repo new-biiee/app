@@ -33,7 +33,7 @@
     "title": "Backend Architecture",
     "href": "/documentation/backend/architecture",
     "section": "Backend",
-    "body": "import { DocsFullSystemOverviewDiagram } from \"../../components/WorkflowEmbeds\"; import { DocsSystemArchitectureDiagram } from \"../../components/WorkflowEmbeds\"; Backend Architecture <DocsFullSystemOverviewDiagram /> The backend is a single deployable image running as two processes that share Postgr"
+    "body": "import { DocsFullSystemOverviewDiagram } from \"../../components/WorkflowEmbeds\"; Backend Architecture <DocsFullSystemOverviewDiagram /> The backend is a single deployable image running as two processes that share PostgreSQL, Redis, Kafka, and ClickHouse. Processes API Server handles: REST endpoints "
   },
   {
     "title": "Batch Assembly",

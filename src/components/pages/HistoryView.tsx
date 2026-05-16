@@ -10,6 +10,7 @@ import {
   Target,
   Scale,
   Percent,
+  Medal,
   Bitcoin,
   CircleDollarSign,
   Gem,
@@ -529,7 +530,7 @@ export const HistoryView: React.FC = () => {
               />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
               <SummaryTile
                 icon={<Wallet size={16} strokeWidth={2.2} />}
                 label="Portfolio"
@@ -585,6 +586,34 @@ export const HistoryView: React.FC = () => {
                     ? stats.trading.wins / stats.trading.settledCount >= 0.5
                       ? "gain"
                       : "loss"
+                    : "default"
+                }
+              />
+              <SummaryTile
+                icon={<Medal size={16} strokeWidth={2.2} />}
+                label="Leaderboard (PnL)"
+                value={
+                  stats?.leaderboard.rank != null
+                    ? `#${stats.leaderboard.rank}`
+                    : "—"
+                }
+                hint={
+                  stats
+                    ? stats.leaderboard.totalRankedUsers > 0
+                      ? `of ${stats.leaderboard.totalRankedUsers} ranked · ${fmtUsd(
+                          microToUsdt(stats.leaderboard.netPnlMicro),
+                          { signed: true, maxFrac: 2 },
+                        )} PnL`
+                      : "No settled trades yet"
+                    : "—"
+                }
+                valueTone={
+                  stats
+                    ? microToUsdt(stats.leaderboard.netPnlMicro) > 0
+                      ? "gain"
+                      : microToUsdt(stats.leaderboard.netPnlMicro) < 0
+                        ? "loss"
+                        : "accent"
                     : "default"
                 }
               />
